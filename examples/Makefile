@@ -20,7 +20,7 @@ all: Animal
 run: Animal
 	./$^
 
-Animal: Animal.c.o ../Object.cpp.o
+Animal: ../Object.cpp.o Animal.c.o
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 %.cpp.o: %.cpp
