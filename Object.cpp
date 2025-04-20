@@ -82,11 +82,11 @@ bool Object_checkClass(const Object* self, const Class* cls, void** dataOut) {
 void Object_debug(const Object* self) {
 	if (!self)
 		return;
-	printf("Object(%p):", self);
+	fprintf(stderr, "Object(%p):", self);
 	for (const Class* cls : self->classes) {
 		void* data = NULL;
 		Object_checkClass(self, cls, &data);
-		printf(" %s(%p)", cls->name, data);
+		fprintf(stderr, " %s(%p)", cls->name, data);
 	}
-	printf("\n");
+	fprintf(stderr, "\n");
 }
