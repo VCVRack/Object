@@ -118,12 +118,6 @@ int main() {
 	// Call virtual method, which calls Dog's overridden implementation.
 	Animal_speak(animal); // "Woof, I'm a dog named Fido with 3 legs."
 
-	int legs = 0;
-	for (int i = 0; i < (1<<29); i++) {
-		legs += Animal_legs_get(animal);
-	}
-	printf("%d\n", legs);
-
 	// All Objects must be freed.
 	Object_free(animal);
 
