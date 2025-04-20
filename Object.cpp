@@ -67,7 +67,8 @@ void Object_pushClass(Object* self, const Class* cls, void* data) {
 
 
 bool Object_checkClass(const Object* self, const Class* cls, void** dataOut) {
-	if (!self || !cls)
+	// It is safe to not check cls, for performance
+	if (!self)
 		return false;
 	auto it = self->datas.find(cls);
 	if (it == self->datas.end())

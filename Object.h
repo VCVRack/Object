@@ -25,6 +25,25 @@ and `0 COMMA_EXPAND ()` to `0`
 
 
 /** Declares a class Class struct and constructor function.
+
+CLASS is the class name such as `Animal`.
+INITARGS are the arguments of the create/specialize functions such as `(const char* name, int legs)`.
+
+Superclasses are defined in your implementation, not in your header.
+
+Example:
+	DECLARE_CLASS(Animal, (const char* name, int legs))
+
+declares the following functions.
+
+Constructor:
+	Object* Animal_create(Object* self, const char* name, int legs);
+
+Specialization function:
+	void Animal_specialize(Object* self, const char* name, int legs);
+
+Type checking function:
+	bool Animal_is(const Object* self);
 */
 #define DECLARE_CLASS(CLASS, INITARGS) \
 	Object* CLASS##_create(EXPAND INITARGS); \
@@ -32,10 +51,16 @@ and `0 COMMA_EXPAND ()` to `0`
 	bool CLASS##_is(const Object* self)
 
 
+/** Declares a non-virtual method for a class.
+This method cannot be overridden by specialized classes (subclasses).
+Similar to DECLARE_METHOD but doesn't define method getters/setters.
+*/
 #define DECLARE_FUNCTION(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES)
 
 
+/** Declares a non-virtual method for a class with a `const Object*` argument.
+*/
 #define DECLARE_FUNCTION_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES)
 
@@ -72,12 +97,12 @@ Non-virtual (direct) call:
 	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
 
 
+/** Declares a method that overrides a different class's virtual method.
+*/
 #define DECLARE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
 
 
-/** Declares a virtual method with a const `self` argument.
-*/
 #define DECLARE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE (*CLASS##_##METHOD##_m)(const Object* self COMMA_EXPAND ARGTYPES); \
 	RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES); \
@@ -90,7 +115,7 @@ Non-virtual (direct) call:
 	RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
 
 
-/** Declares a virtual getter and setter for a class.
+/** Declares a virtual getter, setter, or both for a class.
 
 CLASS is the class name such as `Animal`.
 PROP is the property name such as `name`.

@@ -18,7 +18,7 @@ LDFLAGS += $(FLAGS)
 all: Animal
 
 run: Animal
-	./$^
+	time ./$^
 
 Animal: ../Object.cpp.o Animal.c.o
 	$(CXX) $(LDFLAGS) -o $@ $^

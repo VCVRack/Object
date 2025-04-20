@@ -65,7 +65,7 @@ DEFINE_CLASS(Dog, (), (), {
 	data->name = NULL;
 	PUSH_CLASS(self, Dog, data);
 	OVERRIDE_METHOD(self, Dog, Animal, speak);
-	OVERRIDE_ACCESSORS(self, Dog, Animal, legs);
+	// OVERRIDE_ACCESSORS(self, Dog, Animal, legs);
 	// TODO We're not exactly overriding here, and the arguments are redundant
 	OVERRIDE_ACCESSORS(self, Dog, Dog, name);
 	SET(self, Animal, legs, 4);
@@ -100,18 +100,29 @@ DEFINE_ACCESSORS(Dog, name, const char*, "", {
 
 int main() {
 	Object* animal = Animal_create();
-	Animal_pet(animal);
-	Animal_speak(animal);
 
-	// We can specialize existing Objects with *_init().
+	// Non-virtual method, cannot be overridden
+	Animal_pet(animal); // "You pet the animal."
+
+	// Virtual method
+	Animal_speak(animal); // "I'm an animal with 0 legs."
+
+	// We can specialize existing Objects even after they are created.
 	// If the object is already a Dog, this fails gracefully.
 	Dog_specialize(animal);
 
+	// Call virtual setters
 	Dog_name_set(animal, "Fido");
 	Animal_legs_set(animal, 3);
 
 	// Call virtual method, which calls Dog's overridden implementation.
-	Animal_speak(animal);
+	Animal_speak(animal); // "Woof, I'm a dog named Fido with 3 legs."
+
+	int legs = 0;
+	for (int i = 0; i < (1<<29); i++) {
+		legs += Animal_legs_get(animal);
+	}
+	printf("%d\n", legs);
 
 	// All Objects must be freed.
 	Object_free(animal);
