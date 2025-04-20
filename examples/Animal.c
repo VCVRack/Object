@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "example.h"
+#include "Animal.h"
 
 
 /** POSIX's implementation doesn't gracefully handle NULL */

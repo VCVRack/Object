@@ -4,6 +4,7 @@ FLAGS += -O3
 FLAGS += -Wall -Wextra
 FLAGS += -mavx
 FLAGS += -fPIC
+FLAGS += -I..
 
 CXXFLAGS += $(FLAGS)
 CXXFLAGS += -std=c++11
@@ -14,12 +15,12 @@ CFLAGS += -std=c99
 LDFLAGS += $(FLAGS)
 
 
-all: example
+all: Animal
 
-run: example
-	./example
+run: Animal
+	./$^
 
-example: example.c.o Object.cpp.o
+Animal: Animal.c.o ../Object.cpp.o
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 %.cpp.o: %.cpp
@@ -29,4 +30,4 @@ example: example.c.o Object.cpp.o
 	$(CC) $(CFLAGS) -c -o $@ $^
 
 clean:
-	rm -rfv *.o example
+	rm -rfv *.o Animal

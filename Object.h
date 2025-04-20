@@ -27,9 +27,9 @@ and `0 COMMA_EXPAND ()` to `0`
 /** Declares a class Class struct and constructor function.
 */
 #define DECLARE_CLASS(CLASS, INITARGS) \
-	extern const Class CLASS##_class; \
 	Object* CLASS##_create(EXPAND INITARGS); \
-	void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS)
+	void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS); \
+	bool CLASS##_is(const Object* self)
 
 
 #define DECLARE_FUNCTION(CLASS, METHOD, RETTYPE, ARGTYPES) \
@@ -160,6 +160,9 @@ Example:
 		Object* self = Object_create(); \
 		CLASS##_specialize(self COMMA_EXPAND INITARGNAMES); \
 		return self; \
+	} \
+	bool CLASS##_is(const Object* self) { \
+		return Object_checkClass(self, &CLASS##_class, NULL); \
 	} \
 	static void CLASS##_free(Object* self) { \
 		if (!self) \
