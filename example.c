@@ -4,6 +4,7 @@
 #include "example.h"
 
 
+/** POSIX's implementation doesn't gracefully handle NULL */
 char* strdup(const char *s) {
 	if (!s)
 		return NULL;
@@ -20,30 +21,28 @@ typedef struct Animal {
 	int legs;
 
 	STORE_METHOD(Animal, speak);
-	STORE_PROPERTY(Animal, legs);
+	STORE_ACCESSORS(Animal, legs);
 } Animal;
 
 
 DEFINE_CLASS(Animal, (), (), {
 	Animal* data = calloc(1, sizeof(Animal));
 	data->legs = 0;
-	PUSH_TYPE(self, Animal, data);
+	PUSH_CLASS(self, Animal, data);
 	// TODO We're not exactly overriding here, and the arguments are redundant
 	OVERRIDE_METHOD(self, Animal, Animal, speak);
-	OVERRIDE_PROPERTY(self, Animal, Animal, legs);
+	OVERRIDE_ACCESSORS(self, Animal, Animal, legs);
 }, {
 	free(data);
 })
 
 
-DEFINE_METHOD_CONST(Animal, speak, void, (), (), {
-	if (!data)
-		return;
+DEFINE_METHOD_CONST(Animal, speak, void, VOID, (), (), {
 	printf("I'm an animal with %d legs.\n", GET_PROPERTY(self, Animal, legs));
 })
 
 
-DEFINE_PROPERTY_AUTOMATIC(Animal, legs, int, -1)
+DEFINE_ACCESSORS_AUTOMATIC(Animal, legs, int, -1)
 
 
 // Dog
@@ -51,48 +50,44 @@ DEFINE_PROPERTY_AUTOMATIC(Animal, legs, int, -1)
 typedef struct Dog {
 	char* name;
 
-	STORE_PROPERTY(Dog, name);
+	STORE_ACCESSORS(Dog, name);
 } Dog;
 
 
 DEFINE_CLASS(Dog, (), (), {
-	INIT_CLASS(self, Animal);
+	SPECIALIZE(self, Animal);
 	Dog* data = calloc(1, sizeof(Dog));
 	data->name = NULL;
-	// TODO Add `self` to signatures?
-	PUSH_TYPE(self, Dog, data);
+	PUSH_CLASS(self, Dog, data);
 	OVERRIDE_METHOD(self, Dog, Animal, speak);
-	OVERRIDE_PROPERTY(self, Dog, Animal, legs);
+	OVERRIDE_ACCESSORS(self, Dog, Animal, legs);
 	// TODO We're not exactly overriding here, and the arguments are redundant
-	OVERRIDE_PROPERTY(self, Dog, Dog, name);
+	OVERRIDE_ACCESSORS(self, Dog, Dog, name);
 	SET_PROPERTY(self, Animal, legs, 4);
 }, {
-	if (!data)
-		return;
 	free(data->name);
 	free(data);
 })
 
 
-DEFINE_METHOD_CONST_OVERRIDE(Dog, speak, void, (), {
+DEFINE_METHOD_CONST_OVERRIDE(Dog, speak, void, VOID, (), {
 	printf("Woof, I'm a dog named %s with %d legs.\n", GET_PROPERTY(self, Dog, name), GET_PROPERTY(self, Animal, legs));
 })
 
 
-DEFINE_PROPERTY_OVERRIDE(Dog, legs, int, {
+// This override is pointless, but it shows how to call the superclass' method from an overridden method.
+DEFINE_ACCESSORS_OVERRIDE(Dog, legs, int, -1, {
 	return GET_PROPERTY_DIRECT(self, Animal, legs);
 }, {
 	SET_PROPERTY_DIRECT(self, Animal, legs, legs);
 })
 
 
-DEFINE_PROPERTY(Dog, name, const char*, {
-	if (!data)
-		return NULL;
+DEFINE_ACCESSORS(Dog, name, const char*, "", {
+	if (!data->name)
+		return "";
 	return data->name;
 }, {
-	if (!data)
-		return;
 	free(data->name);
 	data->name = strdup(name);
 })
@@ -106,7 +101,7 @@ int main() {
 
 	// We can specialize existing Objects with *_init().
 	// If the object is already a Dog, this fails gracefully.
-	Dog_init(animal);
+	Dog_specialize(animal);
 
 	Dog_name_set(animal, "Fido");
 	Animal_legs_set(animal, 3);
@@ -114,7 +109,7 @@ int main() {
 	// Call virtual method, which calls Dog's overridden implementation.
 	Animal_speak(animal);
 
-	// We must free each Object.
+	// All Objects must be freed.
 	Object_free(animal);
 
 	return 0;
