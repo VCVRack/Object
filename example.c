@@ -38,11 +38,16 @@ DEFINE_CLASS(Animal, (), (), {
 
 
 DEFINE_METHOD_CONST(Animal, speak, void, VOID, (), (), {
-	printf("I'm an animal with %d legs.\n", GET_PROPERTY(self, Animal, legs));
+	printf("I'm an animal with %d legs.\n", GET(self, Animal, legs));
 })
 
 
 DEFINE_ACCESSORS_AUTOMATIC(Animal, legs, int, -1)
+
+
+DEFINE_FUNCTION_CONST(Animal, pet, void, VOID, (), {
+	printf("You pet the animal.\n");
+})
 
 
 // Dog
@@ -63,7 +68,7 @@ DEFINE_CLASS(Dog, (), (), {
 	OVERRIDE_ACCESSORS(self, Dog, Animal, legs);
 	// TODO We're not exactly overriding here, and the arguments are redundant
 	OVERRIDE_ACCESSORS(self, Dog, Dog, name);
-	SET_PROPERTY(self, Animal, legs, 4);
+	SET(self, Animal, legs, 4);
 }, {
 	free(data->name);
 	free(data);
@@ -71,21 +76,19 @@ DEFINE_CLASS(Dog, (), (), {
 
 
 DEFINE_METHOD_CONST_OVERRIDE(Dog, speak, void, VOID, (), {
-	printf("Woof, I'm a dog named %s with %d legs.\n", GET_PROPERTY(self, Dog, name), GET_PROPERTY(self, Animal, legs));
+	printf("Woof, I'm a dog named %s with %d legs.\n", GET(self, Dog, name), GET(self, Animal, legs));
 })
 
 
 // This override is pointless, but it shows how to call the superclass' method from an overridden method.
 DEFINE_ACCESSORS_OVERRIDE(Dog, legs, int, -1, {
-	return GET_PROPERTY_DIRECT(self, Animal, legs);
+	return GET_DIRECT(self, Animal, legs);
 }, {
-	SET_PROPERTY_DIRECT(self, Animal, legs, legs);
+	SET_DIRECT(self, Animal, legs, legs);
 })
 
 
 DEFINE_ACCESSORS(Dog, name, const char*, "", {
-	if (!data->name)
-		return "";
 	return data->name;
 }, {
 	free(data->name);
@@ -97,6 +100,7 @@ DEFINE_ACCESSORS(Dog, name, const char*, "", {
 
 int main() {
 	Object* animal = Animal_create();
+	Animal_pet(animal);
 	Animal_speak(animal);
 
 	// We can specialize existing Objects with *_init().

@@ -36,6 +36,10 @@ and `0 COMMA_EXPAND ()` to `0`
 	RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES)
 
 
+#define DECLARE_FUNCTION_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
+	RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES)
+
+
 /** Declares a virtual method for a class.
 
 CLASS is the class name such as `Animal`.
@@ -68,6 +72,10 @@ Non-virtual (direct) call:
 	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
 
 
+#define DECLARE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
+	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
+
+
 /** Declares a virtual method with a const `self` argument.
 */
 #define DECLARE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
@@ -75,6 +83,10 @@ Non-virtual (direct) call:
 	RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES); \
 	CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self); \
 	void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m); \
+	RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
+
+
+#define DECLARE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
 
 
@@ -93,22 +105,30 @@ Creates the virtual methods:
 
 along with method getters, setters, and direct functions for both accessors.
 */
-#define DECLARE_ACCESSORS(CLASS, PROP, TYPE) \
-	DECLARE_METHOD_CONST(CLASS, PROP##_get, TYPE, ()); \
+#define DECLARE_GETTER(CLASS, PROP, TYPE) \
+	DECLARE_METHOD_CONST(CLASS, PROP##_get, TYPE, ())
+
+
+#define DECLARE_GETTER_OVERRIDE(CLASS, PROP, TYPE) \
+	DECLARE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, ())
+
+
+#define DECLARE_SETTER(CLASS, PROP, TYPE) \
 	DECLARE_METHOD(CLASS, PROP##_set, void, (TYPE PROP))
 
 
-#define DECLARE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
+#define DECLARE_SETTER_OVERRIDE(CLASS, PROP, TYPE) \
+	DECLARE_METHOD_OVERRIDE(CLASS, PROP##_set, void, (TYPE PROP))
 
 
-#define DECLARE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
+#define DECLARE_ACCESSORS(CLASS, PROP, TYPE) \
+	DECLARE_GETTER(CLASS, PROP, TYPE); \
+	DECLARE_SETTER(CLASS, PROP, TYPE)
 
 
 #define DECLARE_ACCESSORS_OVERRIDE(CLASS, PROP, TYPE) \
-	DECLARE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, ()); \
-	DECLARE_METHOD_OVERRIDE(CLASS, PROP##_set, void, (TYPE PROP))
+	DECLARE_GETTER_OVERRIDE(CLASS, PROP, TYPE); \
+	DECLARE_SETTER_OVERRIDE(CLASS, PROP, TYPE)
 
 
 // Definition macros for source implementation files
@@ -212,6 +232,15 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	}
 
 
+#define DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
+	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
+		CLASS* data = NULL; \
+		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+			return DEFAULT; \
+		CODE \
+	}
+
+
 #define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
 	/* Method getter */ \
 	CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self) { \
@@ -247,32 +276,6 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	}
 
 
-#define DEFINE_ACCESSORS(CLASS, NAME, TYPE, DEFAULT, GETTER, SETTER) \
-	DEFINE_METHOD_CONST(CLASS, NAME##_get, TYPE, DEFAULT, (), (), GETTER) \
-	DEFINE_METHOD(CLASS, NAME##_set, void, VOID, (TYPE NAME), (NAME), SETTER)
-
-
-#define DEFINE_ACCESSORS_AUTOMATIC(CLASS, NAME, TYPE, DEFAULT) \
-	DEFINE_ACCESSORS(CLASS, NAME, TYPE, DEFAULT, { \
-		if (!data) \
-			return DEFAULT; \
-		return data->NAME; \
-	}, { \
-		if (!data) \
-			return; \
-		data->NAME = NAME; \
-	})
-
-
-#define DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
-	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
-			return DEFAULT; \
-		CODE \
-	}
-
-
 #define DEFINE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
 	RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
@@ -282,9 +285,42 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	}
 
 
+#define DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, CODE) \
+	DEFINE_METHOD_CONST(CLASS, PROP##_get, TYPE, DEFAULT, (), (), CODE)
+
+
+#define DEFINE_GETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, CODE) \
+	DEFINE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, DEFAULT, (), CODE)
+
+
+#define DEFINE_SETTER(CLASS, PROP, TYPE, DEFAULT, CODE) \
+	DEFINE_METHOD(CLASS, PROP##_set, void, VOID, (TYPE PROP), (PROP), CODE)
+
+
+#define DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, CODE) \
+	DEFINE_METHOD_OVERRIDE(CLASS, PROP##_set, void, VOID, (TYPE PROP), CODE)
+
+
+#define DEFINE_ACCESSORS(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
+	DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, GETTER) \
+	DEFINE_SETTER(CLASS, PROP, TYPE, DEFAULT, SETTER)
+
+
 #define DEFINE_ACCESSORS_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
-	DEFINE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, DEFAULT, (), GETTER) \
-	DEFINE_METHOD_OVERRIDE(CLASS, PROP##_set, void, VOID, (TYPE PROP), SETTER)
+	DEFINE_GETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, GETTER) \
+	DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, SETTER)
+
+
+#define DEFINE_ACCESSORS_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_ACCESSORS(CLASS, PROP, TYPE, DEFAULT, { \
+		if (!data) \
+			return DEFAULT; \
+		return data->PROP; \
+	}, { \
+		if (!data) \
+			return; \
+		data->PROP = PROP; \
+	})
 
 
 // TODO Consider renaming these
@@ -300,15 +336,22 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 // Call macros
 
 
-// TODO Change name
+// TODO Consider renaming these
 #define OVERRIDE_METHOD(SELF, CLASS, SUPERCLASS, METHOD) \
 	SUPERCLASS##_##METHOD##_mset(SELF, CLASS##_##METHOD##_mdirect)
 
 
-// TODO Change name
-#define OVERRIDE_ACCESSORS(SELF, CLASS, SUPERCLASS, PROP) \
+#define OVERRIDE_GETTER(SELF, CLASS, SUPERCLASS, PROP) \
 	OVERRIDE_METHOD(SELF, CLASS, SUPERCLASS, PROP##_get); \
+
+
+#define OVERRIDE_SETTER(SELF, CLASS, SUPERCLASS, PROP) \
 	OVERRIDE_METHOD(SELF, CLASS, SUPERCLASS, PROP##_set)
+
+
+#define OVERRIDE_ACCESSORS(SELF, CLASS, SUPERCLASS, PROP) \
+	OVERRIDE_GETTER(SELF, CLASS, SUPERCLASS, PROP); \
+	OVERRIDE_SETTER(SELF, CLASS, SUPERCLASS, PROP)
 
 
 #define SPECIALIZE(SELF, CLASS) \
@@ -319,27 +362,27 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	Object_pushClass(SELF, &CLASS##_class, DATA)
 
 
-#define CALL_METHOD(SELF, CLASS, METHOD, ...) \
+#define CALL(SELF, CLASS, METHOD, ...) \
 	CLASS##_##METHOD(SELF COMMA_EXPAND __VA_ARGS__)
 
 
-#define CALL_METHOD_DIRECT(SELF, CLASS, METHOD, ...) \
+#define CALL_DIRECT(SELF, CLASS, METHOD, ...) \
 	CLASS##_##METHOD##_mdirect(SELF COMMA_EXPAND __VA_ARGS__)
 
 
-#define GET_PROPERTY(SELF, CLASS, PROP) \
+#define GET(SELF, CLASS, PROP) \
 	CLASS##_##PROP##_get(SELF)
 
 
-#define GET_PROPERTY_DIRECT(SELF, CLASS, PROP) \
+#define GET_DIRECT(SELF, CLASS, PROP) \
 	CLASS##_##PROP##_get_mdirect(SELF)
 
 
-#define SET_PROPERTY(SELF, CLASS, PROP, VALUE) \
+#define SET(SELF, CLASS, PROP, VALUE) \
 	CLASS##_##PROP##_set(SELF, VALUE)
 
 
-#define SET_PROPERTY_DIRECT(SELF, CLASS, PROP, VALUE) \
+#define SET_DIRECT(SELF, CLASS, PROP, VALUE) \
 	CLASS##_##PROP##_set_mdirect(SELF, VALUE)
 
 
@@ -391,6 +434,8 @@ If so, and dataOut is non-NULL, sets the data pointer.
 bool Object_checkClass(const Object* self, const Class* cls, void** dataOut);
 
 
+/** Prints all types of an object in order of initialization.
+*/
 void Object_debug(const Object* self);
 
 

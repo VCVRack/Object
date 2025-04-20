@@ -15,6 +15,7 @@ However it's a good idea to document the hierarchy for humans to read.
 DECLARE_CLASS(Animal, ());
 DECLARE_METHOD_CONST(Animal, speak, void, ());
 DECLARE_ACCESSORS(Animal, legs, int);
+DECLARE_FUNCTION_CONST(Animal, pet, void, ());
 
 
 /** A domesticated wolf.
