@@ -18,10 +18,10 @@ static_assert(sizeof(Class) == 256);
 
 
 struct Object {
-	// Quick access to data per Class
+	// Quick access to data per class
 	std::map<const Class*, void*> datas;
-	// Types ordered by specialization
-	std::vector<const Class*> types;
+	// Classes ordered by specialization
+	std::vector<const Class*> classes;
 };
 
 
@@ -34,18 +34,18 @@ Object* Object_create() {
 void Object_free(Object* self) {
 	if (!self)
 		return;
-	// Finalize types in reverse order
-	for (auto it = self->types.rbegin(); it != self->types.rend(); it++) {
+	// Finalize classes in reverse order
+	for (auto it = self->classes.rbegin(); it != self->classes.rend(); it++) {
 		const Class* cls = *it;
 		if (cls->finalize)
 			cls->finalize(self);
 	}
-	// De-init types in reverse order
-	while (!self->types.empty()) {
-		const Class* cls = self->types.back();
+	// De-init classes in reverse order
+	while (!self->classes.empty()) {
+		const Class* cls = self->classes.back();
 		if (cls->free)
 			cls->free(self);
-		self->types.pop_back();
+		self->classes.pop_back();
 		self->datas.erase(cls);
 	}
 	assert(self->datas.empty());
@@ -60,9 +60,9 @@ void Object_pushClass(Object* self, const Class* cls, void* data) {
 	auto it = self->datas.find(cls);
 	if (it != self->datas.end())
 		return;
-	// Push cls and data
+	// Push class and data
 	self->datas[cls] = data;
-	self->types.push_back(cls);
+	self->classes.push_back(cls);
 }
 
 
@@ -81,10 +81,11 @@ bool Object_checkClass(const Object* self, const Class* cls, void** dataOut) {
 void Object_debug(const Object* self) {
 	if (!self)
 		return;
-	printf("Object %p\n", self);
-	for (const Class* cls : self->types) {
+	printf("Object(%p):", self);
+	for (const Class* cls : self->classes) {
 		void* data = NULL;
 		Object_checkClass(self, cls, &data);
-		printf("  %s %p\n", cls->name, data);
+		printf(" %s(%p)", cls->name, data);
 	}
+	printf("\n");
 }

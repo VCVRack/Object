@@ -147,17 +147,19 @@ Example:
 
 
 #define DEFINE_CLASS(CLASS, INITARGS, INITARGNAMES, INIT, FREE) \
-	Object* CLASS##_create(EXPAND INITARGS) { \
-		Object* self = Object_create(); \
-		CLASS##_specialize(self COMMA_EXPAND INITARGNAMES); \
-		return self; \
-	} \
+	extern const Class CLASS##_class; \
+	typedef struct CLASS CLASS; \
 	void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
 		if (!self) \
 			return; \
 		if (Object_checkClass(self, &CLASS##_class, NULL)) \
 			return; \
 		INIT \
+	} \
+	Object* CLASS##_create(EXPAND INITARGS) { \
+		Object* self = Object_create(); \
+		CLASS##_specialize(self COMMA_EXPAND INITARGNAMES); \
+		return self; \
 	} \
 	static void CLASS##_free(Object* self) { \
 		if (!self) \
@@ -434,7 +436,7 @@ If so, and dataOut is non-NULL, sets the data pointer.
 bool Object_checkClass(const Object* self, const Class* cls, void** dataOut);
 
 
-/** Prints all types of an object in order of initialization.
+/** Prints all types of an object in order of specialization.
 */
 void Object_debug(const Object* self);
 

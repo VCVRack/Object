@@ -5,11 +5,11 @@
 
 
 /** POSIX's implementation doesn't gracefully handle NULL */
-char* strdup(const char *s) {
+char* strdup2(const char *s) {
 	if (!s)
 		return NULL;
 	size_t len = strlen(s);
-	char* s2 = malloc(len + 1);
+	char* s2 = (char*) malloc(len + 1);
 	memcpy(s2, s, len + 1);
 	return s2;
 }
@@ -17,16 +17,16 @@ char* strdup(const char *s) {
 
 // Animal
 
-typedef struct Animal {
+struct Animal {
 	int legs;
 
 	STORE_METHOD(Animal, speak);
 	STORE_ACCESSORS(Animal, legs);
-} Animal;
+};
 
 
 DEFINE_CLASS(Animal, (), (), {
-	Animal* data = calloc(1, sizeof(Animal));
+	Animal* data = (Animal*) calloc(1, sizeof(Animal));
 	data->legs = 0;
 	PUSH_CLASS(self, Animal, data);
 	// TODO We're not exactly overriding here, and the arguments are redundant
@@ -52,16 +52,16 @@ DEFINE_FUNCTION_CONST(Animal, pet, void, VOID, (), {
 
 // Dog
 
-typedef struct Dog {
+struct Dog {
 	char* name;
 
 	STORE_ACCESSORS(Dog, name);
-} Dog;
+};
 
 
 DEFINE_CLASS(Dog, (), (), {
 	SPECIALIZE(self, Animal);
-	Dog* data = calloc(1, sizeof(Dog));
+	Dog* data = (Dog*) calloc(1, sizeof(Dog));
 	data->name = NULL;
 	PUSH_CLASS(self, Dog, data);
 	OVERRIDE_METHOD(self, Dog, Animal, speak);
@@ -80,7 +80,7 @@ DEFINE_METHOD_CONST_OVERRIDE(Dog, speak, void, VOID, (), {
 })
 
 
-// This override is pointless, but it shows how to call the superclass' method from an overridden method.
+// This example override is pointless overhead, but it demonstrates how to call the superclass' method from an overridden method.
 DEFINE_ACCESSORS_OVERRIDE(Dog, legs, int, -1, {
 	return GET_DIRECT(self, Animal, legs);
 }, {
@@ -92,7 +92,7 @@ DEFINE_ACCESSORS(Dog, name, const char*, "", {
 	return data->name;
 }, {
 	free(data->name);
-	data->name = strdup(name);
+	data->name = strdup2(name);
 })
 
 
