@@ -27,6 +27,7 @@ struct Object {
 
 Object* Object_create() {
 	Object* self = new Object;
+	assert(self);
 	return self;
 }
 
@@ -40,7 +41,7 @@ void Object_free(Object* self) {
 		if (cls->finalize)
 			cls->finalize(self);
 	}
-	// De-init classes in reverse order
+	// Free classes in reverse order
 	while (!self->classes.empty()) {
 		const Class* cls = self->classes.back();
 		if (cls->free)
