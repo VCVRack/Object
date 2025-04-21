@@ -50,7 +50,6 @@ Type checking function:
 	bool Animal_is(const Object* self);
 */
 #define DECLARE_CLASS(CLASS, INITARGS) \
-	extern const Class CLASS##_class; \
 	EXTERNC Object* CLASS##_create(EXPAND INITARGS); \
 	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS); \
 	EXTERNC bool CLASS##_is(const Object* self)
@@ -220,6 +219,7 @@ Example:
 
 
 #define DEFINE_CLASS(CLASS, INITARGS, INITARGNAMES, INIT, FREE) \
+	extern const Class CLASS##_class; \
 	typedef struct CLASS CLASS; \
 	DEFINE_BUILTINS(CLASS, INITARGS, INITARGNAMES, INIT) \
 	DEFINE_FREE(CLASS, FREE) \
