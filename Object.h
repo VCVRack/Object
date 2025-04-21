@@ -2,13 +2,6 @@
 
 #include <stdbool.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-// Object.h
-
 
 /** Converts `EXPAND (1, 2, 3)` to `1, 2, 3`
 and `EXPAND ()` to ``.
@@ -22,6 +15,9 @@ and `0 COMMA_EXPAND ()` to `0`
 
 
 // Declaration macros for public headers
+
+
+// TODO: Use extern "C" for each function if using a C++ compiler.
 
 
 /** Declares a class Class struct and constructor function.
@@ -80,14 +76,14 @@ declares the following functions.
 Virtual dispatch call:
 	void Animal_speak(Object* self, const char* name, int loudness);
 
+Non-virtual (direct) call:
+	void Animal_speak_mdirect(Object* self, const char* name, int loudness);
+
 Method getter:
 	Animal_speak_m Animal_speak_mget(const Object* self);
 
 Method setter:
-	void Animal_speak_mset(const Object* self, Animal_speak_m m);
-
-Non-virtual (direct) call:
-	void Animal_speak_direct(Object* self, const char* name, int loudness);
+	void Animal_speak_mset(Object* self, Animal_speak_m m);
 */
 #define DECLARE_METHOD(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE (*CLASS##_##METHOD##_m)(Object* self COMMA_EXPAND ARGTYPES); \
@@ -156,6 +152,9 @@ along with method getters, setters, and direct functions for both accessors.
 	DECLARE_SETTER_OVERRIDE(CLASS, PROP, TYPE)
 
 
+// TODO: Add non-virtual getters, setters, and accessors.
+
+
 // Definition macros for source implementation files
 
 
@@ -203,6 +202,9 @@ Example:
 		NULL, \
 		{} \
 	};
+
+
+// TODO: There is no way to set a finalize() function with the above macro.
 
 
 /** Class functions (aka non-virtual methods) cannot be overridden.
@@ -388,6 +390,10 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	CLASS##_specialize(SELF)
 
 
+#define IS(SELF, CLASS) \
+	CLASS##_is(SELF)
+
+
 #define PUSH_CLASS(SELF, CLASS, DATA) \
 	Object_pushClass(SELF, &CLASS##_class, DATA)
 
@@ -417,6 +423,11 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 
 // Runtime symbols
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /** The type of all polymorphic objects in this API. */
