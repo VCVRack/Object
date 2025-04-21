@@ -32,7 +32,7 @@ Each class's data is encapsulated in a private/opaque struct unless exposed by g
 ```c
 // legs property is stored in Animal class data
 Animal_legs_get(dog); // 4, since Dog calls Animal_legs_set(dog, 4) upon specialization
-Animal_legs_set(dog, 5); // ignored since Dog can override Animal_legs_set(), preventing invalid values
+Animal_legs_set(dog, 5); // Dog can override Animal_legs_set() to validate the value and perform custom behavior
 
 // name property is stored in Dog class data
 Dog_name_set(dog, "Fido");
@@ -49,6 +49,7 @@ Poodle_specialize(dog); // dog is now an Animal, Dog, and Poodle
 Poodle_is(dog); // true
 // Objects cannot be un-specialized, since doing so could leave objects with invalid/impossible state.
 
+// An example utility class for counting shared ownership
 RefCounter_specialize(dog); // dog is now also a RefCounter
 RefCounter_count_get(dog); // 1
 RefCounter_obtain(dog);
@@ -70,12 +71,12 @@ Calling methods of the wrong class gracefully returns default/error values.
 ```c
 Bird_is(dog); // false
 Bird_fly(dog); // Nothing happens, no-op
-Bird_wingspan_get(dog); // Returns default value -1, defined by Bird implementation
+Bird_wingspan_get(dog); // Returns a default/error value defined by Bird_wingspan_get() implementation, such as -1
 ```
 
 Objects must be freed to avoid a memory leak.
 `Object_free()` calls each class's `finalize()` function in reverse order of specialization, where virtual methods are allowed to be called.
-Then it calls each class's `free()`, where virtual methods are *not* allowed to be called.
+Then it calls each class's `free()` in reverse order, where virtual methods are *not* allowed to be called.
 ```c
 Object_free(dog);
 ```
@@ -130,6 +131,8 @@ void Foo_bar_mset(Object* self, Foo_bar_m m);
 ```
 
 Any language/environment with a C FFI interface can call these functions to interact with your library, including C++, Go, Rust, Zig, Java, C#, Python, PHP, Node, Ruby, Julia, Lua, etc.
+
+The `Object` struct data is private/opaque and must not be accessed except by these methods.
 
 
 ## Performance
