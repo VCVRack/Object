@@ -20,7 +20,7 @@ all: Animal
 run: Animal
 	time ./$^
 
-Animal: ../Object.cpp.o Animal.c.o Ref.c.o
+Animal: ../Object.cpp.o Animal.c.o SharedObject.c.o
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 %.cpp.o: %.cpp

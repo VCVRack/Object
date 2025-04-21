@@ -50,21 +50,21 @@ Poodle_is(dog); // true
 // Objects cannot be un-specialized, since doing so could leave objects with invalid/impossible state.
 
 // An example utility class for counting shared ownership
-RefCounter_specialize(dog); // dog is now also a RefCounter
-RefCounter_count_get(dog); // 1
-RefCounter_obtain(dog);
-RefCounter_count_get(dog); // 2
-RefCounter_release(dog);
+SharedObject_specialize(dog); // dog is now also a SharedObject
+SharedObject_count_get(dog); // 1
+SharedObject_obtain(dog);
+SharedObject_count_get(dog); // 2
+SharedObject_release(dog);
 
 // Or use macros if you prefer
 SPECIALIZE(dog, Poodle);
 IS(dog, Poodle); // true
 
-SPECIALIZE(dog, RefCounter);
-GET(dog, RefCounter, count); // 1
-CALL(dog, RefCounter, obtain);
-GET(dog, RefCounter, count); // 2
-CALL(dog, RefCounter, release);
+SPECIALIZE(dog, SharedObject);
+GET(dog, SharedObject, count); // 1
+CALL(dog, SharedObject, obtain);
+GET(dog, SharedObject, count); // 2
+CALL(dog, SharedObject, release);
 ```
 
 Calling methods of the wrong class gracefully returns default/error values.
