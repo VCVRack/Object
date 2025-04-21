@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdlib.h>
 #include <stdbool.h>
 
 
@@ -49,6 +50,7 @@ Type checking function:
 	bool Animal_is(const Object* self);
 */
 #define DECLARE_CLASS(CLASS, INITARGS) \
+	extern const Class CLASS##_class; \
 	EXTERNC Object* CLASS##_create(EXPAND INITARGS); \
 	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS); \
 	EXTERNC bool CLASS##_is(const Object* self)
@@ -177,9 +179,7 @@ Example:
 #define VOID
 
 
-#define DEFINE_CLASS(CLASS, INITARGS, INITARGNAMES, INIT, FREE) \
-	extern const Class CLASS##_class; \
-	typedef struct CLASS CLASS; \
+#define DEFINE_BUILTINS(CLASS, INITARGS, INITARGNAMES, INIT) \
 	void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
 		if (!self) \
 			return; \
@@ -194,15 +194,35 @@ Example:
 	} \
 	bool CLASS##_is(const Object* self) { \
 		return Object_checkClass(self, &CLASS##_class, NULL); \
-	} \
+	}
+
+
+#define DEFINE_FREE(CLASS, CODE) \
 	static void CLASS##_free(Object* self) { \
 		if (!self) \
 			return; \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return; \
-		FREE \
-	} \
+		CODE \
+	}
+
+
+#define DEFINE_FINALIZE(CLASS, CODE) \
+	static void CLASS##_finalize(Object* self) { \
+		if (!self) \
+			return; \
+		CLASS* data = NULL; \
+		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+			return; \
+		CODE \
+	}
+
+
+#define DEFINE_CLASS(CLASS, INITARGS, INITARGNAMES, INIT, FREE) \
+	typedef struct CLASS CLASS; \
+	DEFINE_BUILTINS(CLASS, INITARGS, INITARGNAMES, INIT) \
+	DEFINE_FREE(CLASS, FREE) \
 	const Class CLASS##_class = { \
 		#CLASS, \
 		CLASS##_free, \
@@ -423,11 +443,11 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 
 #define CALL(SELF, CLASS, METHOD, ...) \
-	CLASS##_##METHOD(SELF COMMA_EXPAND __VA_ARGS__)
+	CLASS##_##METHOD(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
 #define CALL_DIRECT(SELF, CLASS, METHOD, ...) \
-	CLASS##_##METHOD##_mdirect(SELF COMMA_EXPAND __VA_ARGS__)
+	CLASS##_##METHOD##_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
 #define GET(SELF, CLASS, PROP) \
