@@ -3,6 +3,13 @@
 #include <stdbool.h>
 
 
+#ifdef __cplusplus
+#define EXTERNC extern "C"
+#else
+#define EXTERNC
+#endif
+
+
 /** Converts `EXPAND (1, 2, 3)` to `1, 2, 3`
 and `EXPAND ()` to ``.
 */
@@ -42,9 +49,9 @@ Type checking function:
 	bool Animal_is(const Object* self);
 */
 #define DECLARE_CLASS(CLASS, INITARGS) \
-	Object* CLASS##_create(EXPAND INITARGS); \
-	void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS); \
-	bool CLASS##_is(const Object* self)
+	EXTERNC Object* CLASS##_create(EXPAND INITARGS); \
+	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS); \
+	EXTERNC bool CLASS##_is(const Object* self)
 
 
 /** Declares a non-virtual method for a class.
@@ -52,13 +59,13 @@ This method cannot be overridden by specialized classes (subclasses).
 Similar to DECLARE_METHOD but doesn't define method getters/setters.
 */
 #define DECLARE_FUNCTION(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES)
+	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES)
 
 
 /** Declares a non-virtual method for a class with a `const Object*` argument.
 */
 #define DECLARE_FUNCTION_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES)
+	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES)
 
 
 /** Declares a virtual method for a class.
@@ -87,28 +94,28 @@ Method setter:
 */
 #define DECLARE_METHOD(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE (*CLASS##_##METHOD##_m)(Object* self COMMA_EXPAND ARGTYPES); \
-	RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES); \
-	CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self); \
-	void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m); \
-	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
+	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES); \
+	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self); \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m); \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
 
 
 /** Declares a method that overrides a different class's virtual method.
 */
 #define DECLARE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
 
 
 #define DECLARE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE (*CLASS##_##METHOD##_m)(const Object* self COMMA_EXPAND ARGTYPES); \
-	RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES); \
-	CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self); \
-	void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m); \
-	RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
+	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES); \
+	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self); \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m); \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
 
 
 #define DECLARE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
 
 
 /** Declares a virtual getter, setter, or both for a class.
