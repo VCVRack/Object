@@ -93,7 +93,7 @@ DECLARE_CLASS(Animal, ());
 DECLARE_METHOD_CONST(Animal, speak, void, ());
 DECLARE_ACCESSORS(Animal, legs, int);
 
-/** A domesticated wolf */
+/** A domesticated wolf. Specializes Animal. */
 DECLARE_CLASS(Dog, ());
 DECLARE_METHOD(Dog, bury, void, (Object* thing));
 DECLARE_ACCESSORS(Dog, name, const char*);
@@ -132,14 +132,16 @@ void Foo_bar_mset(Object* self, Foo_bar_m m);
 
 Any language/environment with a C FFI interface can call these functions to interact with your library, including C++, Go, Rust, Zig, Java, C#, Python, PHP, Node, Ruby, Julia, Lua, etc.
 
-The `Object` struct data is private/opaque and must not be accessed except by these methods.
+The Object struct and each class's data structs are private/opaque and must not be accessed except by these methods.
 
 
 ## Performance
 
-Because *VCV Object* is more flexible at runtime, ABI-stable, and language-compatible than C++ classes, this library must perform more function calls and pointer dereferences than C++.
+Each Object is a map/dictionary of pointers to private data structs.
+This makes *VCV Object* more flexible, ABI-stable, and language-compatible than C++ classes, but it must perform more function calls and pointer dereferences than C++.
+
 Rough benchmarking suggests that a virtual method call is about 5x slower than on C++.
-We recommend using this library for applications where flexibility is important but speed is not a huge issue, such as UI widgets or plugin hosting.
+We recommend using this library for applications where flexibility is important but navigating the OOP hierarchy is not a bottleneck, such as UI widgets or plugin hosting.
 
 
 ## In this repo
