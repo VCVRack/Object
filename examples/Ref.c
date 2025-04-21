@@ -1,16 +1,19 @@
+#include <assert.h>
 #include "Ref.h"
 
 
 struct Ref {
-	uint64_t ref;
+	uint64_t count;
 };
 
 
 DEFINE_CLASS(Ref, (), (), {
 	Ref* data = (Ref*) calloc(1, sizeof(Ref));
-	data->ref = 1;
+	data->count = 1;
 	PUSH_CLASS(self, Ref, data);
 }, {
+	// Assert that Object_free() is called with no references (when Ref_release() is called), or with 1 reference (the owner who called Object_free())
+	assert(data->count <= 1);
 	free(data);
 })
 
@@ -28,7 +31,7 @@ void Ref_obtain(const Object* self) {
 		return;
 
 	// Increment reference
-	data->ref++;
+	data->count++;
 }
 
 
@@ -45,13 +48,13 @@ void Ref_release(const Object* self) {
 	}
 
 	// Decrement reference and free if that was the last one
-	if (--data->ref == 0) {
+	if (--data->count == 0) {
 		Object_free((Object*) self);
 	}
 }
 
 
-uint64_t Ref_ref_get(const Object* self) {
+uint64_t Ref_count_get(const Object* self) {
 	if (!self)
 		return 0;
 
@@ -59,5 +62,5 @@ uint64_t Ref_ref_get(const Object* self) {
 	if (!Object_checkClass(self, &Ref_class, (void**) &data)) {
 		return 1;
 	}
-	return data->ref;
+	return data->count;
 }

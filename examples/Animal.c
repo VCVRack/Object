@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "Animal.h"
+#include "Ref.h"
 
 
 /** POSIX's implementation doesn't gracefully handle NULL */
@@ -117,6 +118,9 @@ int main() {
 
 	// Call virtual method, which calls Dog's overridden implementation.
 	Animal_speak(animal); // "Woof, I'm a dog named Fido with 3 legs."
+
+	// Ref_obtain(animal);
+	// Ref_release(animal);
 
 	// All Objects must be freed.
 	Object_free(animal);

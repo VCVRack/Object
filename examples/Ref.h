@@ -12,4 +12,4 @@ Reference counter example.
 DECLARE_CLASS(Ref, ());
 DECLARE_FUNCTION_CONST(Ref, obtain, void, ());
 DECLARE_FUNCTION_CONST(Ref, release, void, ());
-DECLARE_FUNCTION_CONST(Ref, ref_get, uint64_t, ());
+DECLARE_FUNCTION_CONST(Ref, count_get, uint64_t, ());
