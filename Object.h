@@ -21,11 +21,21 @@ and `0 COMMA_EXPAND ()` to `0`
 */
 #define COMMA_EXPAND(...) __VA_OPT__(,) __VA_ARGS__
 
+/** Represents the "value" of a void return type.
+Example:
+	void f() {
+		return VOID;
+	}
 
-// Declaration macros for public headers
+Example:
+	DEFINE_FUNCTION(Class, Method, void, VOID, (), {})
+*/
+#define VOID
 
 
-// TODO: Use extern "C" for each function if using a C++ compiler.
+/**************************************
+Declaration macros for public headers
+*/
 
 
 /** Declares a class Class struct and constructor function.
@@ -164,35 +174,25 @@ along with method getters, setters, and direct functions for both accessors.
 // TODO: Add non-virtual getters, setters, and accessors.
 
 
-// Definition macros for source implementation files
-
-
-/** Represents the "value" of a void return type.
-Example:
-	void f() {
-		return VOID;
-	}
-
-Example:
-	DEFINE_FUNCTION(Class, Method, void, VOID, (), {})
+/**************************************
+Definition macros for source implementation files
 */
-#define VOID
 
 
 #define DEFINE_BUILTINS(CLASS, INITARGS, INITARGNAMES, INIT) \
-	void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
+	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
 		if (!self) \
 			return; \
 		if (Object_checkClass(self, &CLASS##_class, NULL)) \
 			return; \
 		INIT \
 	} \
-	Object* CLASS##_create(EXPAND INITARGS) { \
+	EXTERNC Object* CLASS##_create(EXPAND INITARGS) { \
 		Object* self = Object_create(); \
 		CLASS##_specialize(self COMMA_EXPAND INITARGNAMES); \
 		return self; \
 	} \
-	bool CLASS##_is(const Object* self) { \
+	EXTERNC bool CLASS##_is(const Object* self) { \
 		return Object_checkClass(self, &CLASS##_class, NULL); \
 	}
 
@@ -231,15 +231,12 @@ Example:
 	};
 
 
-// TODO: There is no way to set a finalize() function with the above macro.
-
-
 /** Class functions (aka non-virtual methods) cannot be overridden.
 Upgrading a class function to a class method creates linker symbols and does not break the ABI.
 Downgrading a method to a function removes linker symbols and therefore breaks the ABI.
 */
 #define DEFINE_FUNCTION(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
-	RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
+	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
@@ -248,7 +245,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 
 #define DEFINE_FUNCTION_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
-	RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
+	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
@@ -258,7 +255,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 #define DEFINE_METHOD(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
 	/* Method getter */ \
-	CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self) { \
+	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return NULL; \
@@ -267,7 +264,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 		return data->METHOD; \
 	} \
 	/* Method setter */ \
-	void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m) { \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return; \
@@ -276,14 +273,14 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 		data->METHOD = m; \
 	} \
 	/* Virtual dispatch */ \
-	RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
+	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS##_##METHOD##_m m = CLASS##_##METHOD##_mget(self); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
 	} \
 	/* Non-virtual call */ \
-	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
@@ -292,7 +289,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 
 #define DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
-	RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
@@ -302,7 +299,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 #define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
 	/* Method getter */ \
-	CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self) { \
+	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return NULL; \
@@ -311,7 +308,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 		return data->METHOD; \
 	} \
 	/* Method setter */ \
-	void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m) { \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return; \
@@ -320,14 +317,14 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 		data->METHOD = m; \
 	} \
 	/* Virtual dispatch */ \
-	RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
+	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS##_##METHOD##_m m = CLASS##_##METHOD##_mget(self); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
 	} \
 	/* Non-virtual call */ \
-	RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES) { \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
@@ -336,7 +333,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 
 #define DEFINE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
-	RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES) { \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
 		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
@@ -409,7 +406,9 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	STORE_SETTER(CLASS, PROP)
 
 
-// Call macros
+/**************************************
+Call macros
+*/
 
 
 // TODO Consider renaming these
@@ -466,7 +465,9 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	CLASS##_##PROP##_set_mdirect(SELF, VALUE)
 
 
-// Runtime symbols
+/**************************************
+Runtime symbols
+*/
 
 
 #ifdef __cplusplus
