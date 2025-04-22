@@ -30,9 +30,8 @@ DEFINE_CLASS(Animal, (), (), {
 	Animal* data = (Animal*) calloc(1, sizeof(Animal));
 	data->legs = 0;
 	PUSH_CLASS(self, Animal, data);
-	// TODO We're not exactly overriding here, and the arguments are redundant
-	OVERRIDE_METHOD(self, Animal, Animal, speak);
-	OVERRIDE_ACCESSORS(self, Animal, Animal, legs);
+	SET_METHOD(self, Animal, Animal, speak);
+	SET_ACCESSORS(self, Animal, Animal, legs);
 }, {
 	free(data);
 })
@@ -65,10 +64,9 @@ DEFINE_CLASS(Dog, (), (), {
 	Dog* data = (Dog*) calloc(1, sizeof(Dog));
 	data->name = NULL;
 	PUSH_CLASS(self, Dog, data);
-	OVERRIDE_METHOD(self, Dog, Animal, speak);
-	// OVERRIDE_ACCESSORS(self, Dog, Animal, legs);
-	// TODO We're not exactly overriding here, and the arguments are redundant
-	OVERRIDE_ACCESSORS(self, Dog, Dog, name);
+	SET_METHOD(self, Dog, Animal, speak);
+	SET_ACCESSORS(self, Dog, Animal, legs);
+	SET_ACCESSORS(self, Dog, Dog, name);
 	SET(self, Animal, legs, 4);
 }, {
 	free(data->name);
