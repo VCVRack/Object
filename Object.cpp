@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <map>
 #include <vector>
+#include <atomic>
 #include "Object.h"
 
 
@@ -22,18 +23,32 @@ struct Object {
 	std::map<const Class*, void*> datas;
 	// Classes ordered by specialization
 	std::vector<const Class*> classes;
+
+	// Number of shared references
+	std::atomic<size_t> refs;
 };
 
 
 Object* Object_create() {
 	Object* self = new Object;
 	assert(self);
+	self->refs = 1;
 	return self;
 }
 
 
-void Object_free(Object* self) {
+void Object_obtain(Object* self) {
 	if (!self)
+		return;
+	++self->refs;
+}
+
+
+void Object_release(Object* self) {
+	if (!self)
+		return;
+	// Decrement references
+	if (--self->refs)
 		return;
 	// Finalize classes in reverse order
 	for (auto it = self->classes.rbegin(); it != self->classes.rend(); it++) {
@@ -51,6 +66,13 @@ void Object_free(Object* self) {
 	}
 	assert(self->datas.empty());
 	delete self;
+}
+
+
+size_t Object_refs_get(const Object* self) {
+	if (!self)
+		return 0;
+	return self->refs;
 }
 
 

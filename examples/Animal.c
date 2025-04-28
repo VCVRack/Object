@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "Animal.h"
-// #include "SharedObject.h"
 
 
 /** POSIX's implementation doesn't gracefully handle NULL */
@@ -22,6 +21,7 @@ struct Animal {
 	int legs;
 
 	STORE_METHOD(Animal, speak);
+
 	STORE_ACCESSORS(Animal, legs);
 };
 
@@ -120,8 +120,8 @@ int main() {
 	// SharedObject_obtain(animal);
 	// SharedObject_release(animal);
 
-	// All Objects must be freed.
-	Object_free(animal);
+	// All Objects must be released.
+	Object_release(animal);
 
 	return 0;
 }

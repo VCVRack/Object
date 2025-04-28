@@ -49,22 +49,9 @@ Poodle_specialize(dog); // dog is now an Animal, Dog, and Poodle
 Poodle_is(dog); // true
 // Objects cannot be un-specialized, since doing so could leave objects with invalid/impossible state.
 
-// An example utility class for counting shared ownership
-SharedObject_specialize(dog); // dog is now also a SharedObject
-SharedObject_count_get(dog); // 1
-SharedObject_obtain(dog);
-SharedObject_count_get(dog); // 2
-SharedObject_release(dog);
-
 // Or use macros if you prefer
 SPECIALIZE(dog, Poodle);
 IS(dog, Poodle); // true
-
-SPECIALIZE(dog, SharedObject);
-GET(dog, SharedObject, count); // 1
-CALL(dog, SharedObject, obtain);
-GET(dog, SharedObject, count); // 2
-CALL(dog, SharedObject, release);
 ```
 
 Calling methods of the wrong class gracefully returns default/error values.
@@ -74,11 +61,11 @@ Bird_fly(dog); // Nothing happens, no-op
 Bird_wingspan_get(dog); // Returns a default/error value defined by Bird_wingspan_get() implementation, such as -1
 ```
 
-Objects must be freed to avoid a memory leak.
-`Object_free()` calls each class's `finalize()` function in reverse order of specialization, where virtual methods are allowed to be called.
-Then it calls each class's `free()` in reverse order, where virtual methods are *not* allowed to be called.
+Objects are reference-counted, and each shared owner must release their reference to avoid a memory leak.
+When an object's last reference is released, each class's `finalize()` function is called in reverse order of specialization, where virtual methods are allowed to be called.
+Then each class's `free()` is called in reverse order, where virtual methods are *not* allowed to be called.
 ```c
-Object_free(dog);
+Object_release(dog);
 ```
 
 

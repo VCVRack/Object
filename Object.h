@@ -498,14 +498,32 @@ typedef struct Class {
 } Class;
 
 
-/** Creates an object with no classes */
+/** Creates an object with no classes.
+Reference count is set to 1.
+Object must be released with Object_release() to prevent a memory leak.
+*/
 Object* Object_create();
 
 
-/** Deletes the object and its internal data for each class.
-Calls finalize() for each class in reverse order, and then free() in reverse order.
+/** Increments the object's reference counter.
+Use this to share another reference to this object.
+Each reference must be released with Object_release() to prevent a memory leak.
+Thread-safe.
 */
-void Object_free(Object* self);
+void Object_obtain(Object* self);
+
+
+/** Decrements the object's reference counter.
+If no references are left, this frees the object and its internal data for each class.
+Calls finalize() for each class in reverse order, and then free() in reverse order.
+Thread-safe.
+*/
+void Object_release(Object* self);
+
+
+/** Returns the number of shared references to the object.
+*/
+size_t Object_refs_get(const Object* self);
 
 
 /** Assigns an object a class type with a data pointer.
