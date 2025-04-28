@@ -183,7 +183,7 @@ Definition macros for source implementation files
 	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
 		if (!self) \
 			return; \
-		if (Object_checkClass(self, &CLASS##_class, NULL)) \
+		if (Object_class_check(self, &CLASS##_class, NULL)) \
 			return; \
 		INIT \
 	} \
@@ -193,7 +193,7 @@ Definition macros for source implementation files
 		return self; \
 	} \
 	EXTERNC bool CLASS##_is(const Object* self) { \
-		return Object_checkClass(self, &CLASS##_class, NULL); \
+		return Object_class_check(self, &CLASS##_class, NULL); \
 	}
 
 
@@ -202,7 +202,7 @@ Definition macros for source implementation files
 		if (!self) \
 			return; \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return; \
 		CODE \
 	}
@@ -213,7 +213,7 @@ Definition macros for source implementation files
 		if (!self) \
 			return; \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return; \
 		CODE \
 	}
@@ -238,7 +238,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 #define DEFINE_FUNCTION(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
 	}
@@ -247,7 +247,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 #define DEFINE_FUNCTION_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
 	}
@@ -257,7 +257,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	/* Method getter */ \
 	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return NULL; \
 		if (!data) \
 			return NULL; \
@@ -266,7 +266,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	/* Method setter */ \
 	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return; \
 		if (!data) \
 			return; \
@@ -282,7 +282,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	/* Non-virtual call */ \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
 	}
@@ -291,7 +291,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 #define DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
 	}
@@ -301,7 +301,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	/* Method getter */ \
 	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return NULL; \
 		if (!data) \
 			return NULL; \
@@ -310,7 +310,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	/* Method setter */ \
 	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return; \
 		if (!data) \
 			return; \
@@ -326,7 +326,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	/* Non-virtual call */ \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
 	}
@@ -335,7 +335,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 #define DEFINE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS* data = NULL; \
-		if (!Object_checkClass(self, &CLASS##_class, (void**) &data)) \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
 	}
@@ -437,7 +437,7 @@ Call macros
 
 
 #define PUSH_CLASS(SELF, CLASS, DATA) \
-	Object_pushClass(SELF, &CLASS##_class, DATA)
+	Object_class_push(SELF, &CLASS##_class, DATA)
 
 
 #define CALL(SELF, CLASS, METHOD, ...) \
@@ -528,13 +528,13 @@ size_t Object_refs_get(const Object* self);
 
 /** Assigns an object a class type with a data pointer.
 */
-void Object_pushClass(Object* self, const Class* cls, void* data);
+void Object_class_push(Object* self, const Class* cls, void* data);
 
 
 /** Returns true if an object has a class.
 If so, and dataOut is non-NULL, sets the data pointer.
 */
-bool Object_checkClass(const Object* self, const Class* cls, void** dataOut);
+bool Object_class_check(const Object* self, const Class* cls, void** dataOut);
 
 
 /** Prints all types of an object in order of specialization.

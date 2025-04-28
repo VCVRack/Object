@@ -76,7 +76,7 @@ size_t Object_refs_get(const Object* self) {
 }
 
 
-void Object_pushClass(Object* self, const Class* cls, void* data) {
+void Object_class_push(Object* self, const Class* cls, void* data) {
 	if (!self || !cls)
 		return;
 	// Return silently if already inherited
@@ -89,7 +89,7 @@ void Object_pushClass(Object* self, const Class* cls, void* data) {
 }
 
 
-bool Object_checkClass(const Object* self, const Class* cls, void** dataOut) {
+bool Object_class_check(const Object* self, const Class* cls, void** dataOut) {
 	// It is safe to not check cls, for performance
 	if (!self)
 		return false;
@@ -108,7 +108,7 @@ void Object_debug(const Object* self) {
 	fprintf(stderr, "Object(%p):", self);
 	for (const Class* cls : self->classes) {
 		void* data = NULL;
-		Object_checkClass(self, cls, &data);
+		Object_class_check(self, cls, &data);
 		fprintf(stderr, " %s(%p)", cls->name, data);
 	}
 	fprintf(stderr, "\n");
