@@ -40,6 +40,10 @@ Object* Object_create() {
 void Object_obtain(Object* self) {
 	if (!self)
 		return;
+	// This check isn't part of the thread-safety guarantee, but it protects against obtaining a reference within a finalize() or free() function.
+	if (self->refs == 0)
+		return;
+	// Increment reference count
 	++self->refs;
 }
 
@@ -47,7 +51,10 @@ void Object_obtain(Object* self) {
 void Object_release(Object* self) {
 	if (!self)
 		return;
-	// Decrement references
+	// This check isn't part of the thread-safety guarantee, but it protects against releasing a reference within a finalize() or free() function.
+	if (self->refs == 0)
+		return;
+	// Decrement reference count
 	if (--self->refs)
 		return;
 	// Finalize classes in reverse order
@@ -65,6 +72,7 @@ void Object_release(Object* self) {
 		self->datas.erase(cls);
 	}
 	assert(self->datas.empty());
+	// Free Object
 	delete self;
 }
 
