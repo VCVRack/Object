@@ -149,8 +149,16 @@ along with method getters, setters, and direct functions for both accessors.
 	DECLARE_METHOD_CONST(CLASS, PROP##_get, TYPE, ())
 
 
+/** Declares a getter that overrides a different class's virtual getter.
+*/
 #define DECLARE_GETTER_OVERRIDE(CLASS, PROP, TYPE) \
 	DECLARE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, ())
+
+
+/** Declares a non-virtual getter method for a class.
+*/
+#define DECLARE_GETTER_FUNCTION(CLASS, PROP, TYPE) \
+	DECLARE_FUNCTION_CONST(CLASS, PROP##_get, TYPE, ())
 
 
 #define DECLARE_SETTER(CLASS, PROP, TYPE) \
@@ -161,6 +169,10 @@ along with method getters, setters, and direct functions for both accessors.
 	DECLARE_METHOD_OVERRIDE(CLASS, PROP##_set, void, (TYPE PROP))
 
 
+#define DECLARE_SETTER_FUNCTION(CLASS, PROP, TYPE) \
+	DECLARE_FUNCTION(CLASS, PROP##_set, void, (TYPE PROP))
+
+
 #define DECLARE_ACCESSORS(CLASS, PROP, TYPE) \
 	DECLARE_GETTER(CLASS, PROP, TYPE); \
 	DECLARE_SETTER(CLASS, PROP, TYPE)
@@ -169,6 +181,11 @@ along with method getters, setters, and direct functions for both accessors.
 #define DECLARE_ACCESSORS_OVERRIDE(CLASS, PROP, TYPE) \
 	DECLARE_GETTER_OVERRIDE(CLASS, PROP, TYPE); \
 	DECLARE_SETTER_OVERRIDE(CLASS, PROP, TYPE)
+
+
+#define DECLARE_ACCESSORS_FUNCTION(CLASS, PROP, TYPE) \
+	DECLARE_GETTER_FUNCTION(CLASS, PROP, TYPE); \
+	DECLARE_SETTER_FUNCTION(CLASS, PROP, TYPE)
 
 
 // TODO: Add non-virtual getters, setters, and accessors.
@@ -349,6 +366,10 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	DEFINE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, DEFAULT, (), CODE)
 
 
+#define DEFINE_GETTER_FUNCTION(CLASS, PROP, TYPE, DEFAULT, CODE) \
+	DEFINE_FUNCTION_CONST(CLASS, PROP##_get, TYPE, DEFAULT, (), CODE)
+
+
 #define DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, { \
 		if (!data) \
@@ -363,6 +384,10 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 #define DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, CODE) \
 	DEFINE_METHOD_OVERRIDE(CLASS, PROP##_set, void, VOID, (TYPE PROP), CODE)
+
+
+#define DEFINE_SETTER_FUNCTION(CLASS, PROP, TYPE, CODE) \
+	DEFINE_FUNCTION(CLASS, PROP##_set, void, VOID, (TYPE PROP), CODE)
 
 
 #define DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE) \
@@ -383,12 +408,16 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, SETTER)
 
 
+#define DEFINE_ACCESSORS_FUNCTION(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
+	DEFINE_GETTER_FUNCTION(CLASS, PROP, TYPE, DEFAULT, GETTER) \
+	DEFINE_SETTER_FUNCTION(CLASS, PROP, TYPE, SETTER)
+
+
 #define DEFINE_ACCESSORS_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE)
 
 
-// TODO Consider renaming these
 #define STORE_METHOD(CLASS, METHOD) \
 	CLASS##_##METHOD##_m METHOD
 
