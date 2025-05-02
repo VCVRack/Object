@@ -1,22 +1,26 @@
 #include "CppWrapper.h"
+// #include <stdio.h>
 
 
-DEFINE_CLASS(CppWrapper, (void* ptr), (ptr), {
-	// Since ptr's lifetime equals this Object's lifetime, store it directly as data instead of wrapping in a struct.
-	PUSH_CLASS(self, CppWrapper, ptr);
+struct CppWrapper {
+	ObjectWrapper* wrapper;
+};
+
+
+DEFINE_CLASS(CppWrapper, (ObjectWrapper* wrapper), (wrapper), {
+	CppWrapper* data = new CppWrapper;
+	data->wrapper = wrapper;
+	PUSH_CLASS(self, CppWrapper, data);
 }, {
-	ObjectWrapper* ow = (ObjectWrapper*) data;
-	if (!ow)
-		return;
-	// If C++ class's `self` reference is NULL, this signals that it will be deleted after Object_free() returns.
-	if (!ow->self)
-		return;
-	// Request to not call Object_free() again since we are already doing it.
-	ow->self = NULL;
-	delete ow;
+	// printf("bye CppWrapper\n");
+	// Will be NULL if ObjectWrapper was already deleted
+	delete data->wrapper;
+	delete data;
 })
 
 
-DEFINE_FUNCTION_CONST(CppWrapper, ptr_get, void*, NULL, (), {
-	return data;
+DEFINE_ACCESSORS_FUNCTION(CppWrapper, wrapper, ObjectWrapper*, NULL, {
+	return data->wrapper;
+}, {
+	data->wrapper = wrapper;
 })

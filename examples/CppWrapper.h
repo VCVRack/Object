@@ -3,43 +3,109 @@
 #include <Object.h>
 
 
-/** Wraps a C++ class so users can interact with your Object API using C++ class objects.
+struct ObjectWrapper;
+
+
+/** Wraps a C++ ObjectWrapper subclass instance so users can interact with your Object API using C++ class syntax.
 */
-DECLARE_CLASS(CppWrapper, (void* ptr));
-DECLARE_FUNCTION_CONST(CppWrapper, ptr_get, void*, ());
+DECLARE_CLASS(CppWrapper, (ObjectWrapper* wrapper));
+DECLARE_ACCESSORS_FUNCTION(CppWrapper, wrapper, ObjectWrapper*);
 
 
 #ifdef __cplusplus
 
+// #include <stdio.h>
+#include <assert.h>
+#include <type_traits>
 
-/** Convenience functions for converting an Object to a particular C++ class type. */
+
 template <class T>
-T* CppWrapper_getClass(Object* self) {
-	return static_cast<T*>(CppWrapper_ptr_get(self));
+T* CppWrapper_cast(Object* self) {
+	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	return dynamic_cast<T*>(wrapper);
 }
 
 template <class T>
-const T* CppWrapper_getClass(const Object* self) {
-	return static_cast<const T*>(CppWrapper_ptr_get(self));
+const T* CppWrapper_cast(const Object* self) {
+	const ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	return dynamic_cast<const T*>(wrapper);
 }
 
 
 /** Base class that wraps an Object and its methods.
+
+A library using VCV Object can offer a C++ wrapper API by writing an ObjectWrapper subclass for each Object class and writing proxy virtual/non-virtual methods and accessors.
+
+Once defined, there are two ways to use an ObjectWrapper subclass.
+
+You can proxy an existing Object by calling the constructor `ObjectWrapper(object)`.
+No reference is obtained, and the proxy is deleted when the Object is freed.
+
+Or you can further subclass an ObjectWrapper subclass and override its virtual methods.
+When instantiated, it creates and owns its Object until deleted.
+When the Object's methods are called (such as `Animal_speak()`), your overridden C++ methods are called.
+
+Subclasses can define virtual accessors methods (getters/setters) with names like `getFoo()` or `foo_get()`.
 */
 struct ObjectWrapper {
 	Object* self;
+	bool proxy;
 
-	ObjectWrapper(Object* self) : self(self) {
+	ObjectWrapper() : ObjectWrapper(Object_create(), false) {}
+
+	ObjectWrapper(Object* self, bool proxy = true) : self(self), proxy(proxy) {
 		CppWrapper_specialize(self, this);
 	}
 
 	virtual ~ObjectWrapper() {
-		if (self) {
-			Object* oldSelf = self;
-			// Request to not delete `this` since we are already being deleted.
-			self = NULL;
-			Object_free(oldSelf);
-		}
+		// printf("bye ObjectWrapper\n");
+		// Remove CppWrapper -> ObjectWrapper association
+		SET(self, CppWrapper, wrapper, NULL);
+		// Proxy wrappers don't own a reference
+		if (!proxy)
+			Object_release(self);
+	}
+};
+
+
+template <class T>
+struct Ref {
+	using element_type = T;
+
+	T* wrapper;
+
+	Ref(T* wrapper) : wrapper(wrapper) {
+		static_assert(std::is_base_of<ObjectWrapper, T>::value, "Ref can only hold references to ObjectWrapper subclasses");
+		obtain();
+	}
+
+	~Ref() {
+		release();
+	}
+
+	T& operator*() const {
+		return *wrapper;
+	}
+
+	T* operator->() const {
+		return wrapper;
+	}
+
+	void reset(T* wrapper) {
+		release();
+		this->wrapper = wrapper;
+		obtain();
+	}
+
+private:
+	void obtain() {
+		if (wrapper)
+			Object_obtain(wrapper->self);
+	}
+
+	void release() {
+		if (wrapper)
+			Object_release(wrapper->self);
 	}
 };
 
@@ -128,6 +194,8 @@ struct ArrayAccessor : ArrayGetter<T, Size, Get> {
 
 		ElementAccessor(Object* self, size_t index) : self(self), index(index) {}
 
+		/** Does not check bounds, relies on the getter and setter functions to do so.
+		*/
 		operator T() const {
 			return Get(self, index);
 		}
