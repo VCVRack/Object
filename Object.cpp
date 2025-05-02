@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cstdio>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <atomic>
 #include "Object.h"
@@ -20,7 +20,7 @@ static_assert(sizeof(Class) == 256);
 
 struct Object {
 	// Quick access to data per class
-	std::map<const Class*, void*> datas;
+	std::unordered_map<const Class*, void*> datas;
 	// Classes ordered by specialization
 	std::vector<const Class*> classes;
 
