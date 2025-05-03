@@ -9,7 +9,7 @@ struct ObjectWrapper;
 /** Wraps a C++ ObjectWrapper subclass instance so users can interact with your Object API using C++ class syntax.
 */
 DECLARE_CLASS(CppWrapper, (ObjectWrapper* wrapper));
-DECLARE_ACCESSORS_FUNCTION(CppWrapper, wrapper, ObjectWrapper*);
+DECLARE_ACCESSOR_FUNCTION(CppWrapper, wrapper, ObjectWrapper*);
 
 
 #ifdef __cplusplus
@@ -68,6 +68,9 @@ struct ObjectWrapper {
 };
 
 
+/** Reference counter for an ObjectWrapper subclass.
+Work-in-progress, untested.
+*/
 template <class T>
 struct Ref {
 	using element_type = T;
@@ -110,106 +113,116 @@ private:
 };
 
 
-/** Behaves like a const variable but wraps a getter function.
-Example:
-	Getter<int, value_get> value(object);
-	int v = value; // Calls value_get(object);
+/** Defines a method that returns the `self` Object pointer of the "parent" class of a proxy class below.
+Effectively performs `this - offsetof(Parent, property)` to find the parent pointer.
+This is probably undefined behavior on non-standard-layout types, but it seems to work with virtual classes, virtual inheritance, and multiple inheritance on GCC/Clang x64/arm64.
 */
-template <typename T,
-	T (*Get)(const Object* self)>
-struct Getter {
-	Object* self;
-
-	explicit Getter(Object* self) : self(self) {}
-
-	operator T() const {
-		return Get(self);
+#define DEFINE_PROXY_SELF_GET(CPPCLASS, PROP) \
+	Object* self_get() const { \
+		size_t offset = (size_t) (char*) &((CPPCLASS*) NULL)->PROP; \
+		CPPCLASS* wrapper = (CPPCLASS*) ((char*) this - offset); \
+		return wrapper->self; \
 	}
-};
+
+
+/** Behaves like a const variable but wraps a getter function.
+Zero overhead: 0 bytes, compiles to C function calls.
+Example:
+	GETTER_PROXY(AnimalWrapper, Animal, legs, int);
+
+Usage:
+	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
+*/
+#define GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
+	[[no_unique_address]] \
+	struct { \
+		DEFINE_PROXY_SELF_GET(CPPCLASS, PROP) \
+		operator TYPE() const { \
+			return CLASS##_##PROP##_get(self_get()); \
+		} \
+	} PROP
 
 
 /** Behaves like a mutable variable but wraps getter/setter functions.
 Example:
-	Accessor<int, value_get, value_set> value(object);
-	int n = value; // Calls value_get(object);
-	value = 42; // Calls value_set(object, 42);
+	ACCESSOR_PROXY(AnimalWrapper, Animal, legs, int);
+
+Usage:
+	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
+	animalWrapper->legs = 4; // Calls Animal_legs_set(animal, 3);
 */
-template <typename T,
-	T (*Get)(const Object* self),
-	void (*Set)(Object* self, T value)>
-struct Accessor : Getter<T, Get> {
-	explicit Accessor(Object* self) : Getter<T, Get>(self) {}
+#define ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
+	[[no_unique_address]] \
+	struct { \
+		DEFINE_PROXY_SELF_GET(CPPCLASS, PROP) \
+		operator TYPE() const { \
+			return CLASS##_##PROP##_get(self_get()); \
+		} \
+		std::add_const<TYPE>::type& operator=(std::add_const<TYPE>::type& PROP) { \
+			CLASS##_##PROP##_set(self_get(), PROP); \
+			return PROP; \
+		} \
+	} PROP
 
-	Accessor& operator=(const T& value) {
-		Set(this->self, value);
-		return *this;
-	}
-};
 
-
-/** Behaves like a const std::array but wraps an element getter function.
+/** Behaves like a const array but wraps an element getter function.
 Example:
-	ArrayGetter<int, array_size, array_get> array(object);
-	array.size(); // Calls array_size(object);
-	int n = array[42]; // Calls array_get(object, 42);
+	ARRAY_GETTER_PROXY(AnimalWrapper, Animal, toes, int);
+
+Usage:
+	int toes = animalWrapper->toes[leg]; // Calls Animal_toes_get(animal, leg);
 */
+#define ARRAY_GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
+	[[no_unique_address]] \
+	struct { \
+		DEFINE_PROXY_SELF_GET(CPPCLASS, PROP) \
+		TYPE operator[](size_t index) const { \
+			return CLASS##_##PROP##_get(self_get(), index); \
+		} \
+	} PROP
+
+
+/** Behaves like a mutable array but wraps element getter/setter functions.
+Example:
+	ARRAY_ACCESSOR_PROXY(AnimalWrapper, Animal, toes, int);
+
+Usage:
+	int toes = animalWrapper->toes[leg]; // Calls Animal_toes_get(animal, leg);
+	animalWrapper->toes[leg] = 5; // Calls Animal_toes_set(animal, leg, 5);
+*/
+#define ARRAY_ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
+	[[no_unique_address]] \
+	struct { \
+		DEFINE_PROXY_SELF_GET(CPPCLASS, PROP) \
+		auto operator[](size_t index) { \
+			return ElementAccessor<TYPE, CLASS##_##PROP##_get, CLASS##_##PROP##_set>(self_get(), index); \
+		} \
+	} PROP
+
+
 template <class T,
-	size_t (*Size)(const Object* self),
-	T (*Get)(const Object* self, size_t index)>
-struct ArrayGetter {
-	using value_type = T;
-	using size_type = size_t;
-
+	T (*Get)(const Object* self, size_t index),
+	void (*Set)(Object* self, size_t index, T value)>
+struct ElementAccessor {
 	Object* self;
+	size_t index;
 
-	explicit ArrayGetter(Object* self) : self(self) {}
+	ElementAccessor(Object* self, size_t index) : self(self), index(index) {}
 
-	T operator[](size_t index) const {
+	/** Does not check bounds, relies on the C getter and setter functions to do so.
+	*/
+	operator T() const {
 		return Get(self, index);
 	}
 
-	size_t size() const {
-		return Size(self);
+	const T& operator=(const T& value) {
+		Set(self, index, value);
+		return value;
 	}
 };
 
 
-/** Behaves like a mutable std::array but wraps element getter/setter functions.
-Example:
-	ArrayAccessor<int, array_size, array_get, array_set> array(object);
-	array.size(); // Calls array_size(object);
-	int n = array[42]; // Calls array_get(object, 42);
-	array[42] = 1; // Calls array_set(object, 42, 1);
-*/
-template <class T,
-	size_t (*Size)(const Object* self),
-	T (*Get)(const Object* self, size_t index),
-	void (*Set)(Object* self, size_t index, T value)>
-struct ArrayAccessor : ArrayGetter<T, Size, Get> {
-	explicit ArrayAccessor(Object* self) : ArrayGetter<T, Size, Get>(self) {}
-
-	struct ElementAccessor {
-		Object* self;
-		size_t index;
-
-		ElementAccessor(Object* self, size_t index) : self(self), index(index) {}
-
-		/** Does not check bounds, relies on the getter and setter functions to do so.
-		*/
-		operator T() const {
-			return Get(self, index);
-		}
-
-		ElementAccessor& operator=(const T& value) {
-			Set(self, index, value);
-			return *this;
-		}
-	};
-
-	ElementAccessor operator[](size_t index) {
-		return ElementAccessor(this->self, index);
-	}
-};
+// TODO: Make the above class subclass a template function that implements all methods that don't need template magic.
 
 
 #endif // __cplusplus
