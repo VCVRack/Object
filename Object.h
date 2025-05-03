@@ -130,26 +130,25 @@ Method setter:
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
 
 
-/** Declares a virtual getter, setter, or both for a class.
+/** Declares a virtual getter method for a class.
 
 CLASS is the class name such as `Animal`.
 PROP is the property name such as `name`.
 TYPE is the type of the property such as `const char*`.
 
 Example:
-	DECLARE_ACCESSOR(Animal, name, const char*)
+	DECLARE_GETTER(Animal, name, const char*)
 
 Creates the virtual methods:
 	const char* Animal_name_get(const Object* self);
-	void Animal_name_set(const Object* self, const char* name);
 
-along with method getters, setters, and direct functions for both accessors.
+along with the method getter, setter, and direct function.
 */
 #define DECLARE_GETTER(CLASS, PROP, TYPE) \
 	DECLARE_METHOD_CONST(CLASS, PROP##_get, TYPE, ())
 
 
-/** Declares a getter that overrides a different class's virtual getter.
+/** Declares a getter method that overrides a different class's virtual getter.
 */
 #define DECLARE_GETTER_OVERRIDE(CLASS, PROP, TYPE) \
 	DECLARE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, ())
@@ -161,6 +160,8 @@ along with method getters, setters, and direct functions for both accessors.
 	DECLARE_FUNCTION_CONST(CLASS, PROP##_get, TYPE, ())
 
 
+/** Declares a virtual setter method for a class.
+*/
 #define DECLARE_SETTER(CLASS, PROP, TYPE) \
 	DECLARE_METHOD(CLASS, PROP##_set, void, (TYPE PROP))
 
@@ -173,6 +174,16 @@ along with method getters, setters, and direct functions for both accessors.
 	DECLARE_FUNCTION(CLASS, PROP##_set, void, (TYPE PROP))
 
 
+/** Declares a virtual getter/setter method pair for a class.
+Example:
+	DECLARE_ACCESSOR(Animal, name, const char*)
+
+Creates the virtual methods:
+	const char* Animal_name_get(const Object* self);
+	void Animal_name_set(const Object* self, const char* name);
+
+along with the method getters, setters, and direct function for both methods.
+*/
 #define DECLARE_ACCESSOR(CLASS, PROP, TYPE) \
 	DECLARE_GETTER(CLASS, PROP, TYPE); \
 	DECLARE_SETTER(CLASS, PROP, TYPE)
@@ -186,9 +197,6 @@ along with method getters, setters, and direct functions for both accessors.
 #define DECLARE_ACCESSOR_FUNCTION(CLASS, PROP, TYPE) \
 	DECLARE_GETTER_FUNCTION(CLASS, PROP, TYPE); \
 	DECLARE_SETTER_FUNCTION(CLASS, PROP, TYPE)
-
-
-// TODO: Add non-virtual getters, setters, and accessors.
 
 
 /**************************************
