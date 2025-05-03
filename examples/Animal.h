@@ -14,7 +14,7 @@ However it's a good idea to document the hierarchy for humans to read.
 /** An organic beast, no matter how small. */
 DECLARE_CLASS(Animal, ());
 DECLARE_METHOD_CONST(Animal, speak, void, ());
-DECLARE_ACCESSORS(Animal, legs, int);
+DECLARE_ACCESSOR(Animal, legs, int);
 DECLARE_FUNCTION_CONST(Animal, pet, void, ());
 
 
@@ -23,5 +23,5 @@ Inherits Animal.
 */
 DECLARE_CLASS(Dog, ());
 DECLARE_METHOD_CONST_OVERRIDE(Dog, speak, void, ());
-DECLARE_ACCESSORS_OVERRIDE(Dog, legs, int);
-DECLARE_ACCESSORS(Dog, name, const char*);
+DECLARE_ACCESSOR_OVERRIDE(Dog, legs, int);
+DECLARE_ACCESSOR(Dog, name, const char*);

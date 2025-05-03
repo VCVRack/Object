@@ -7,7 +7,7 @@ FLAGS += -fPIC
 FLAGS += -I..
 
 CXXFLAGS += $(FLAGS)
-CXXFLAGS += -std=c++11
+CXXFLAGS += -std=c++17
 
 CFLAGS += $(FLAGS)
 CFLAGS += -std=c99
@@ -20,7 +20,7 @@ all: Animal
 run: Animal
 	time ./$^
 
-Animal: ../Object.cpp.o Animal.c.o
+Animal: Animal.c.o ../Object.cpp.o
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 %.cpp.o: %.cpp

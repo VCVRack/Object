@@ -4,7 +4,8 @@
 #include "Animal.h"
 
 
-/** POSIX's implementation doesn't gracefully handle NULL */
+/** Duplicates a null-terminated string like the POSIX function but gracefully handles NULL.
+*/
 char* strdup2(const char *s) {
 	if (!s)
 		return NULL;
@@ -21,8 +22,7 @@ struct Animal {
 	int legs;
 
 	STORE_METHOD(Animal, speak);
-
-	STORE_ACCESSORS(Animal, legs);
+	STORE_ACCESSOR(Animal, legs);
 };
 
 
@@ -31,8 +31,9 @@ DEFINE_CLASS(Animal, (), (), {
 	data->legs = 0;
 	PUSH_CLASS(self, Animal, data);
 	SET_METHOD(self, Animal, Animal, speak);
-	SET_ACCESSORS(self, Animal, Animal, legs);
+	SET_ACCESSOR(self, Animal, Animal, legs);
 }, {
+	// printf("bye Animal\n");
 	free(data);
 })
 
@@ -42,7 +43,7 @@ DEFINE_METHOD_CONST(Animal, speak, void, VOID, (), (), {
 })
 
 
-DEFINE_ACCESSORS_AUTOMATIC(Animal, legs, int, -1)
+DEFINE_ACCESSOR_AUTOMATIC(Animal, legs, int, -1)
 
 
 DEFINE_FUNCTION_CONST(Animal, pet, void, VOID, (), {
@@ -55,7 +56,7 @@ DEFINE_FUNCTION_CONST(Animal, pet, void, VOID, (), {
 struct Dog {
 	char* name;
 
-	STORE_ACCESSORS(Dog, name);
+	STORE_ACCESSOR(Dog, name);
 };
 
 
@@ -65,10 +66,11 @@ DEFINE_CLASS(Dog, (), (), {
 	data->name = NULL;
 	PUSH_CLASS(self, Dog, data);
 	SET_METHOD(self, Dog, Animal, speak);
-	SET_ACCESSORS(self, Dog, Animal, legs);
-	SET_ACCESSORS(self, Dog, Dog, name);
+	SET_ACCESSOR(self, Dog, Animal, legs);
+	SET_ACCESSOR(self, Dog, Dog, name);
 	SET(self, Animal, legs, 4);
 }, {
+	// printf("bye Dog\n");
 	free(data->name);
 	free(data);
 })
@@ -80,14 +82,16 @@ DEFINE_METHOD_CONST_OVERRIDE(Dog, speak, void, VOID, (), {
 
 
 // This example override is pointless overhead, but it demonstrates how to call the superclass' method from an overridden method.
-DEFINE_ACCESSORS_OVERRIDE(Dog, legs, int, -1, {
+DEFINE_ACCESSOR_OVERRIDE(Dog, legs, int, -1, {
 	return GET_DIRECT(self, Animal, legs);
 }, {
+	if (legs > 4)
+		legs = 4;
 	SET_DIRECT(self, Animal, legs, legs);
 })
 
 
-DEFINE_ACCESSORS(Dog, name, const char*, "", {
+DEFINE_ACCESSOR(Dog, name, const char*, "", {
 	return data->name;
 }, {
 	free(data->name);
@@ -116,9 +120,6 @@ int main() {
 
 	// Call virtual method, which calls Dog's overridden implementation.
 	Animal_speak(animal); // "Woof, I'm a dog named Fido with 3 legs."
-
-	// SharedObject_obtain(animal);
-	// SharedObject_release(animal);
 
 	// All Objects must be released.
 	Object_release(animal);
