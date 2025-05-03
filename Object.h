@@ -30,7 +30,7 @@ Example:
 Example:
 	DEFINE_FUNCTION(Class, Method, void, VOID, (), {})
 */
-#define VOID void()
+#define VOID
 
 
 /**************************************
