@@ -1,26 +1,26 @@
-#include <atomic>
+#include <stdatomic.h>
 #include <assert.h>
 #include "WeakRef.h"
 
 
 struct WeakRef {
 	Object* object;
-	std::atomic<size_t> refs;
+	atomic_size_t refs;
 };
 
 
 DEFINE_CLASS(Weak, (), (), {
-	WeakRef* weakRef = new WeakRef;
+	WeakRef* weakRef = malloc(sizeof(WeakRef));
 	weakRef->object = self;
-	weakRef->refs = 0;
+	atomic_init(&weakRef->refs, 0);
 	PUSH_CLASS(self, Weak, weakRef);
 }, {
 	WeakRef* weakRef = (WeakRef*) data;
 	weakRef->object = NULL;
 	// Don't delete WeakRef if there are still references to it
-	if (weakRef->refs)
+	if (atomic_load_explicit(&weakRef->refs, memory_order_acquire) != 0)
 		return;
-	delete weakRef;
+	free(weakRef);
 })
 
 
@@ -33,7 +33,7 @@ WeakRef* WeakRef_obtain(Object* object) {
 	Object_class_check(object, &Weak_class, (void**) &weakRef);
 	assert(weakRef);
 	// Increment weak reference count
-	++weakRef->refs;
+	atomic_fetch_add_explicit(&weakRef->refs, 1, memory_order_acq_rel);
 	return weakRef;
 }
 
@@ -43,12 +43,12 @@ void WeakRef_release(WeakRef* weakRef) {
 		return;
 	// Decrement weak reference count
 	// Don't delete if there are still references
-	if (--weakRef->refs)
+	if (atomic_fetch_sub_explicit(&weakRef->refs, 1, memory_order_acq_rel) - 1 != 0)
 		return;
 	// Don't delete if Object is still alive. There are no remaining references, but a call to WeakRef_obtain() will reuse this WeakRef.
 	if (weakRef->object)
 		return;
-	delete weakRef;
+	free(weakRef);
 }
 
 
