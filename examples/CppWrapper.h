@@ -3,13 +3,15 @@
 #include <Object.h>
 
 
-class ObjectWrapper;
+typedef struct ObjectWrapper ObjectWrapper;
 
 
 /** Wraps a C++ ObjectWrapper subclass instance so users can interact with your Object API using C++ class syntax.
 */
-DECLARE_CLASS(CppWrapper, (ObjectWrapper* wrapper));
+DECLARE_CLASS(CppWrapper, ());
 DECLARE_ACCESSOR_FUNCTION(CppWrapper, wrapper, ObjectWrapper*);
+typedef void (*CppWrapper_destructor_f)(ObjectWrapper* wrapper);
+DECLARE_ACCESSOR_FUNCTION(CppWrapper, destructor, CppWrapper_destructor_f);
 
 
 #ifdef __cplusplus
@@ -17,19 +19,6 @@ DECLARE_ACCESSOR_FUNCTION(CppWrapper, wrapper, ObjectWrapper*);
 // #include <stdio.h>
 #include <assert.h>
 #include <type_traits>
-
-
-template <class T>
-T* CppWrapper_cast(Object* self) {
-	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
-	return dynamic_cast<T*>(wrapper);
-}
-
-template <class T>
-const T* CppWrapper_cast(const Object* self) {
-	const ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
-	return dynamic_cast<const T*>(wrapper);
-}
 
 
 /** Base class that wraps an Object and its methods.
@@ -50,20 +39,25 @@ Subclasses can define virtual accessors methods (getters/setters) with names lik
 class ObjectWrapper {
 public:
 	Object* self;
-	bool proxy;
+	bool original;
 
-	ObjectWrapper() : ObjectWrapper(Object_create(), false) {}
+	ObjectWrapper() : ObjectWrapper(Object_create(), true) {}
 
-	ObjectWrapper(Object* self, bool proxy = true) : self(self), proxy(proxy) {
-		CppWrapper_specialize(self, this);
+	ObjectWrapper(Object* self, bool original = false) : self(self), original(original) {
+		// TODO Assert that existing wrapper does not already exist
+		CppWrapper_specialize(self);
+		CppWrapper_wrapper_set(self, this);
+		CppWrapper_destructor_set(self, [](ObjectWrapper* wrapper) {
+			delete wrapper;
+		});
 	}
 
 	virtual ~ObjectWrapper() {
 		// printf("bye ObjectWrapper\n");
 		// Remove CppWrapper -> ObjectWrapper association
-		SET(self, CppWrapper, wrapper, NULL);
+		CppWrapper_wrapper_set(self, NULL);
 		// Proxy wrappers don't own a reference
-		if (!proxy)
+		if (original)
 			Object_release(self);
 	}
 };
@@ -113,6 +107,19 @@ private:
 			Object_release(wrapper->self);
 	}
 };
+
+
+template <class T>
+T* CppWrapper_cast(Object* self) {
+	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	return dynamic_cast<T*>(wrapper);
+}
+
+template <class T>
+const T* CppWrapper_cast(const Object* self) {
+	const ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	return dynamic_cast<const T*>(wrapper);
+}
 
 
 /** Defines a struct that can calculate the `self` Object pointer of the "parent" class of a proxy class below.
