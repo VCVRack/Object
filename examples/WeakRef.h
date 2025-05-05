@@ -10,12 +10,14 @@ A weak reference does not share ownership of the Object, but it can safely track
 
 The caller *must* release each weak reference with WeakRef_release() after use, or it will never be freed, leaking memory.
 
-WeakRef is not currently thread-safe.
+Not currently thread-safe.
 */
 EXTERNC WeakRef* WeakRef_obtain(Object* object);
 
 /** Releases ownership of the weak reference.
 WeakRef should be considered invalid after calling this function.
+
+Not currently thread-safe.
 */
 EXTERNC void WeakRef_release(WeakRef* weakRef);
 
@@ -33,5 +35,7 @@ Example:
 Incorrect example:
 	// This leaks memory because the Object reference is never released after being obtained.
 	Animal_speak(WeakRef_get(weak_animal));
+
+TODO: This is not currently thread-safe with Object_release(). If the Object is freed in another thread while this function is called, an invalid Object might be returned. WeakRef should probably be integrated into Object.h.
 */
 EXTERNC Object* WeakRef_get(WeakRef* weakRef);
