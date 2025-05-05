@@ -245,6 +245,7 @@ Definition macros for source implementation files
 
 
 #define DEFINE_CLASS(CLASS, INITARGS, INITARGNAMES, INIT, FREE) \
+	extern const Class CLASS##_class; \
 	typedef struct CLASS CLASS; \
 	DEFINE_BUILTINS(CLASS, INITARGS, INITARGNAMES, INIT) \
 	DEFINE_FREE(CLASS, FREE) \
@@ -552,6 +553,8 @@ void Object_obtain(Object* self);
 
 /** Decrements the object's reference counter.
 If no references are left, this frees the object and its internal data for each class.
+Object should be considered invalid after calling this function.
+
 Calls finalize() for each class in reverse order, and then free() in reverse order.
 Thread-safe.
 */
