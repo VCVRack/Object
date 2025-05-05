@@ -371,6 +371,16 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	DEFINE_METHOD_CONST(CLASS, PROP##_get, TYPE, DEFAULT, (), (), CODE)
 
 
+/** Defines a getter method that returns the property from the data struct.
+*/
+#define DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, { \
+		if (!data) \
+			return DEFAULT; \
+		return data->PROP; \
+	})
+
+
 #define DEFINE_GETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, CODE) \
 	DEFINE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, DEFAULT, (), CODE)
 
@@ -379,8 +389,8 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	DEFINE_FUNCTION_CONST(CLASS, PROP##_get, TYPE, DEFAULT, (), CODE)
 
 
-#define DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
-	DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, { \
+#define DEFINE_GETTER_FUNCTION_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_GETTER_FUNCTION(CLASS, PROP, TYPE, DEFAULT, { \
 		if (!data) \
 			return DEFAULT; \
 		return data->PROP; \
@@ -391,6 +401,16 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	DEFINE_METHOD(CLASS, PROP##_set, void, VOID, (TYPE PROP), (PROP), CODE)
 
 
+/** Defines a setter method that sets the property to the data struct.
+*/
+#define DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE) \
+	DEFINE_SETTER(CLASS, PROP, TYPE, { \
+		if (!data) \
+			return; \
+		data->PROP = PROP; \
+	})
+
+
 #define DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, CODE) \
 	DEFINE_METHOD_OVERRIDE(CLASS, PROP##_set, void, VOID, (TYPE PROP), CODE)
 
@@ -399,8 +419,8 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	DEFINE_FUNCTION(CLASS, PROP##_set, void, VOID, (TYPE PROP), CODE)
 
 
-#define DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE) \
-	DEFINE_SETTER(CLASS, PROP, TYPE, { \
+#define DEFINE_SETTER_FUNCTION_AUTOMATIC(CLASS, PROP, TYPE) \
+	DEFINE_SETTER_FUNCTION(CLASS, PROP, TYPE, { \
 		if (!data) \
 			return; \
 		data->PROP = PROP; \
@@ -410,6 +430,11 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 #define DEFINE_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
 	DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, GETTER) \
 	DEFINE_SETTER(CLASS, PROP, TYPE, SETTER)
+
+
+#define DEFINE_ACCESSOR_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE)
 
 
 #define DEFINE_ACCESSOR_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
@@ -422,9 +447,9 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	DEFINE_SETTER_FUNCTION(CLASS, PROP, TYPE, SETTER)
 
 
-#define DEFINE_ACCESSOR_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
-	DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
-	DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE)
+#define DEFINE_ACCESSOR_FUNCTION_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_GETTER_FUNCTION_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_SETTER_FUNCTION_AUTOMATIC(CLASS, PROP, TYPE)
 
 
 #define STORE_METHOD(CLASS, METHOD) \
