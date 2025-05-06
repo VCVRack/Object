@@ -107,9 +107,9 @@ Method setter:
 #define DECLARE_METHOD(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES); \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self); \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m); \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m)
 
 
 /** Declares a method that overrides a different class's virtual method.
@@ -121,9 +121,9 @@ Method setter:
 #define DECLARE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES); \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self); \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m); \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m)
 
 
 #define DECLARE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
@@ -204,7 +204,7 @@ Definition macros for source implementation files
 */
 
 
-#define DEFINE_BUILTINS(CLASS, INITARGS, INITARGNAMES, INIT) \
+#define DEFINE_CLASS_FUNCTIONS(CLASS, INITARGS, INITARGNAMES, INIT) \
 	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
 		if (!self) \
 			return; \
@@ -222,7 +222,7 @@ Definition macros for source implementation files
 	}
 
 
-#define DEFINE_FREE(CLASS, CODE) \
+#define DEFINE_CLASS_FREE(CLASS, CODE) \
 	static void CLASS##_free(Object* self) { \
 		if (!self) \
 			return; \
@@ -233,7 +233,7 @@ Definition macros for source implementation files
 	}
 
 
-#define DEFINE_FINALIZE(CLASS, CODE) \
+#define DEFINE_CLASS_FINALIZE(CLASS, CODE) \
 	static void CLASS##_finalize(Object* self) { \
 		if (!self) \
 			return; \
@@ -247,8 +247,8 @@ Definition macros for source implementation files
 #define DEFINE_CLASS(CLASS, INITARGS, INITARGNAMES, INIT, FREE) \
 	extern const Class CLASS##_class; \
 	typedef struct CLASS CLASS; \
-	DEFINE_BUILTINS(CLASS, INITARGS, INITARGNAMES, INIT) \
-	DEFINE_FREE(CLASS, FREE) \
+	DEFINE_CLASS_FUNCTIONS(CLASS, INITARGS, INITARGNAMES, INIT) \
+	DEFINE_CLASS_FREE(CLASS, FREE) \
 	const Class CLASS##_class = { \
 		#CLASS, \
 		CLASS##_free, \
@@ -280,24 +280,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 
 #define DEFINE_METHOD(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
-	/* Method getter */ \
-	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
-		CLASS* data = NULL; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return NULL; \
-		if (!data) \
-			return NULL; \
-		return data->METHOD; \
-	} \
-	/* Method setter */ \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m) { \
-		CLASS* data = NULL; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return; \
-		if (!data) \
-			return; \
-		data->METHOD = m; \
-	} \
+	typedef RETTYPE CLASS##_##METHOD##_m(Object* self COMMA_EXPAND ARGTYPES); \
 	/* Virtual dispatch */ \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS##_##METHOD##_m* m = CLASS##_##METHOD##_mget(self); \
@@ -311,19 +294,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
-	}
-
-
-#define DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = NULL; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return DEFAULT; \
-		CODE \
-	}
-
-
-#define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
+	} \
 	/* Method getter */ \
 	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
 		CLASS* data = NULL; \
@@ -341,7 +312,20 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 		if (!data) \
 			return; \
 		data->METHOD = m; \
-	} \
+	}
+
+
+#define DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
+		CLASS* data = NULL; \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
+			return DEFAULT; \
+		CODE \
+	}
+
+
+#define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
+	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
 	/* Virtual dispatch */ \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS##_##METHOD##_m* m = CLASS##_##METHOD##_mget(self); \
@@ -355,6 +339,24 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
+	} \
+	/* Method getter */ \
+	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
+		CLASS* data = NULL; \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
+			return NULL; \
+		if (!data) \
+			return NULL; \
+		return data->METHOD; \
+	} \
+	/* Method setter */ \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m) { \
+		CLASS* data = NULL; \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
+			return; \
+		if (!data) \
+			return; \
+		data->METHOD = m; \
 	}
 
 
