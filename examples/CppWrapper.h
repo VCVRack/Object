@@ -10,8 +10,8 @@ typedef struct ObjectWrapper ObjectWrapper;
 */
 DECLARE_CLASS(CppWrapper, ());
 DECLARE_ACCESSOR_FUNCTION(CppWrapper, wrapper, ObjectWrapper*);
-typedef void (*CppWrapper_destructor_f)(ObjectWrapper* wrapper);
-DECLARE_ACCESSOR_FUNCTION(CppWrapper, destructor, CppWrapper_destructor_f);
+typedef void CppWrapper_destructor_f(ObjectWrapper* wrapper);
+DECLARE_ACCESSOR_FUNCTION(CppWrapper, destructor, CppWrapper_destructor_f*);
 
 
 #ifdef __cplusplus

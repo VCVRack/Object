@@ -105,10 +105,10 @@ Method setter:
 	void Animal_speak_mset(Object* self, Animal_speak_m m);
 */
 #define DECLARE_METHOD(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	typedef RETTYPE (*CLASS##_##METHOD##_m)(Object* self COMMA_EXPAND ARGTYPES); \
+	typedef RETTYPE CLASS##_##METHOD##_m(Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES); \
-	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self); \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m); \
+	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self); \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m); \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
 
 
@@ -119,10 +119,10 @@ Method setter:
 
 
 #define DECLARE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	typedef RETTYPE (*CLASS##_##METHOD##_m)(const Object* self COMMA_EXPAND ARGTYPES); \
+	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES); \
-	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self); \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m); \
+	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self); \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m); \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
 
 
@@ -281,7 +281,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 #define DEFINE_METHOD(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
 	/* Method getter */ \
-	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self) { \
+	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
 		CLASS* data = NULL; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return NULL; \
@@ -290,7 +290,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 		return data->METHOD; \
 	} \
 	/* Method setter */ \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m) { \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m) { \
 		CLASS* data = NULL; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return; \
@@ -300,7 +300,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	} \
 	/* Virtual dispatch */ \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS##_##METHOD##_m m = CLASS##_##METHOD##_mget(self); \
+		CLASS##_##METHOD##_m* m = CLASS##_##METHOD##_mget(self); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
@@ -325,7 +325,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 #define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
 	/* Method getter */ \
-	EXTERNC CLASS##_##METHOD##_m CLASS##_##METHOD##_mget(const Object* self) { \
+	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
 		CLASS* data = NULL; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return NULL; \
@@ -334,7 +334,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 		return data->METHOD; \
 	} \
 	/* Method setter */ \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m m) { \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m) { \
 		CLASS* data = NULL; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return; \
@@ -344,7 +344,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 	} \
 	/* Virtual dispatch */ \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS##_##METHOD##_m m = CLASS##_##METHOD##_mget(self); \
+		CLASS##_##METHOD##_m* m = CLASS##_##METHOD##_mget(self); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
@@ -453,7 +453,7 @@ Downgrading a method to a function removes linker symbols and therefore breaks t
 
 
 #define STORE_METHOD(CLASS, METHOD) \
-	CLASS##_##METHOD##_m METHOD
+	CLASS##_##METHOD##_m* METHOD
 
 
 #define STORE_GETTER(CLASS, PROP) \
@@ -540,8 +540,8 @@ extern "C" {
 /** The type of all polymorphic objects in this API. */
 typedef struct Object Object;
 
-typedef void (*Object_free_m)(Object* self);
-typedef void (*Object_finalize_m)(Object* self);
+typedef void Object_free_m(Object* self);
+typedef void Object_finalize_m(Object* self);
 
 typedef struct Class {
 	const char* name;
@@ -549,12 +549,12 @@ typedef struct Class {
 	Must not call virtual methods.
 	Called by Object_free() for each class in reverse order.
 	*/
-	Object_free_m free;
+	Object_free_m* free;
 	/** Prepares object to be freed, if non-NULL.
 	Can call virtual methods.
 	Called by Object_free() for each class in reverse order.
 	*/
-	Object_finalize_m finalize;
+	Object_finalize_m* finalize;
 	// Reserved for future fields. Must be zero.
 	// Possibly `getDataSize`
 	void* reserved[29];

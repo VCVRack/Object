@@ -4,7 +4,7 @@
 
 struct CppWrapper {
 	ObjectWrapper* wrapper;
-	CppWrapper_destructor_f destructor;
+	CppWrapper_destructor_f* destructor;
 };
 
 
@@ -21,4 +21,4 @@ DEFINE_CLASS(CppWrapper, (), (), {
 
 
 DEFINE_ACCESSOR_FUNCTION_AUTOMATIC(CppWrapper, wrapper, ObjectWrapper*, NULL)
-DEFINE_ACCESSOR_FUNCTION_AUTOMATIC(CppWrapper, destructor, CppWrapper_destructor_f, NULL)
+DEFINE_ACCESSOR_FUNCTION_AUTOMATIC(CppWrapper, destructor, CppWrapper_destructor_f*, NULL)
