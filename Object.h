@@ -566,6 +566,7 @@ typedef struct Class {
 /** Creates an object with no classes.
 Reference count is set to 1.
 Object must be released with Object_release() to prevent a memory leak.
+Never returns NULL.
 */
 Object* Object_create();
 
@@ -574,6 +575,7 @@ Object* Object_create();
 Use this to share another reference to this object.
 Each reference must be released with Object_release() to prevent a memory leak.
 Thread-safe.
+Does nothing if self is NULL.
 */
 void Object_obtain(Object* self);
 
@@ -582,8 +584,9 @@ void Object_obtain(Object* self);
 If no references are left, this frees the object and its internal data for each class.
 Object should be considered invalid after calling this function.
 
-Calls finalize() for each class in reverse order, and then free() in reverse order.
+Calls finalize() for each class in reverse order of specialization, and then free() in reverse order.
 Thread-safe.
+Does nothing if self is NULL.
 */
 void Object_release(Object* self);
 
@@ -594,17 +597,20 @@ size_t Object_refs_get(const Object* self);
 
 
 /** Assigns an object a class type with a data pointer.
+Does nothing if self is NULL.
 */
 void Object_class_push(Object* self, const Class* cls, void* data);
 
 
 /** Returns true if an object has a class.
 If so, and dataOut is non-NULL, sets the data pointer.
+Returns false if self is NULL.
 */
 bool Object_class_check(const Object* self, const Class* cls, void** dataOut);
 
 
 /** Prints all types of an object in order of specialization.
+TODO: Change to `char* Object_inspect(self)` or something.
 */
 void Object_debug(const Object* self);
 
