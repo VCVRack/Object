@@ -1,6 +1,6 @@
 #include <stdatomic.h>
 #include <assert.h>
-#include "WeakRef.h"
+#include <Object/WeakRef.h>
 
 
 struct WeakRef {

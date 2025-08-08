@@ -71,7 +71,7 @@ Object_release(dog);
 
 ## Declaring and defining classes
 
-You can create your own object classes by including `Object.h` and using its macros.
+You can create your own object classes by including `Object/Object.h` and using its macros.
 
 The `Animal` and `Dog` classes above can be declared by this `.h` header.
 ```c
@@ -133,9 +133,9 @@ We recommend using this library for applications where flexibility is important 
 
 ## In this repo
 
-- [Object.h](Object.h) contains macros to declare and define your classes and methods, as well as runtime function declarations.
-- [Object.cpp](Object.cpp) is a possible C++ implementation of the (tiny) runtime. Feel free to port this to C, Go, etc if you have a favorite map/dictionary implementation.
-- [examples/](examples/) contains example programs and helpful classes you might need in your library.
+- [Object.h](Object/Object.h) contains macros to declare and define your classes and methods, as well as runtime function declarations.
+- [Object.cpp](src/Object.cpp) is a possible C++ implementation of the (tiny) runtime. Feel free to port this to C, Go, etc if you have a favorite map/dictionary implementation.
+- [examples/](examples/) contains example programs that demonstrate usage and features.
 
 
 ## License
