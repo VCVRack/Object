@@ -5,9 +5,13 @@
 
 
 #ifdef __cplusplus
-#define EXTERNC extern "C"
+	#define EXTERNC extern "C"
+	#define EXTERNC_BEGIN extern "C" {
+	#define EXTERNC_END }
 #else
-#define EXTERNC
+	#define EXTERNC
+	#define EXTERNC_BEGIN
+	#define EXTERNC_END
 #endif
 
 
@@ -534,9 +538,7 @@ Runtime symbols
 */
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+EXTERNC_BEGIN
 
 
 /** The type of all polymorphic objects in this API. */
@@ -615,6 +617,4 @@ TODO: Change to `char* Object_inspect(self)` or something.
 void Object_debug(const Object* self);
 
 
-#ifdef __cplusplus
-}
-#endif
+EXTERNC_END
