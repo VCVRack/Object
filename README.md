@@ -22,7 +22,7 @@ Animal_speak(dog); // Woof!
 // Similar to dog->Animal::speak() in C++
 Animal_speak_mdirect(dog); // Hello
 
-// Or use macros if you prefer
+// Or use C/C++ macros if you prefer DSL-like code
 CALL(dog, Dog, bury, bone);
 CALL(dog, Animal, speak); // Woof!
 CALL_DIRECT(dog, Animal, speak); // Hello

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Object.h"
+#include "WeakObject.h"
 
 
 typedef struct ObjectWrapper ObjectWrapper;
@@ -64,45 +65,90 @@ public:
 
 
 /** Reference counter for an ObjectWrapper subclass.
-Work-in-progress, untested.
+Similar to std::shared_ptr.
 */
 template <class T>
 class Ref {
 public:
+	static_assert(std::is_base_of<ObjectWrapper, T>::value, "Ref can only hold references to ObjectWrapper subclasses");
+
 	using element_type = T;
 
-	T* wrapper;
-
-	Ref(T* wrapper) : wrapper(wrapper) {
-		static_assert(std::is_base_of<ObjectWrapper, T>::value, "Ref can only hold references to ObjectWrapper subclasses");
+	// ObjectWrapper constructor
+	explicit Ref(T* wrapper = nullptr) {
+		this->wrapper = wrapper;
 		obtain();
+	}
+
+	// Copy constructor
+	Ref(const Ref& other) {
+		wrapper = other.wrapper;
+		obtain();
+	}
+
+	// Move constructor
+	Ref(Ref&& other) {
+		wrapper = other.wrapper;
+		other.wrapper = nullptr;
 	}
 
 	~Ref() {
 		release();
 	}
 
-	T& operator*() const {
-		return *wrapper;
+	// Copy assignment
+	Ref& operator=(const Ref& other) {
+		reset(other.wrapper);
+		return *this;
 	}
 
-	T* operator->() const {
-		return wrapper;
+	// Move assignment
+	Ref& operator=(Ref&& other) {
+		if (this != &other) {
+			release();
+			wrapper = other.wrapper;
+			other.wrapper = nullptr;
+		}
+		return *this;
 	}
 
-	void reset(T* wrapper) {
+	void reset(T* wrapper = nullptr) {
+		if (this->wrapper == wrapper)
+			return;
 		release();
 		this->wrapper = wrapper;
 		obtain();
 	}
 
+	void swap(Ref& other) {
+		T* wrapper = this->wrapper;
+		this->wrapper = other.wrapper;
+		other.wrapper = wrapper;
+	}
+
+	T* get() const { return wrapper; }
+	T& operator*() const { return *wrapper; }
+	T* operator->() const { return wrapper; }
+
+	size_t use_count() const {
+		return wrapper ? Object_refs_get(wrapper->self) : 0;
+	}
+
+	explicit operator bool() const { return wrapper; }
+
+	bool operator==(const Ref& other) {
+		return wrapper == other.wrapper;
+	}
+
 private:
-	void obtain() {
+	T* wrapper = NULL;
+
+	void obtain() noexcept {
 		if (wrapper)
 			Object_obtain(wrapper->self);
 	}
 
-	void release() {
+	void release() noexcept {
 		if (wrapper)
 			Object_release(wrapper->self);
 	}
@@ -120,6 +166,123 @@ const T* CppWrapper_cast(const Object* self) {
 	const ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
 	return dynamic_cast<const T*>(wrapper);
 }
+
+
+/** Weak reference counter for an ObjectWrapper subclass.
+Similar to std::weak_ptr.
+*/
+template <class T>
+class WeakRef {
+public:
+	static_assert(std::is_base_of<ObjectWrapper, T>::value, "WeakRef can only hold references to ObjectWrapper subclasses");
+
+	using element_type = T;
+
+	explicit WeakRef(T* wrapper = nullptr) {
+		this->wrapper = wrapper;
+		weakObject = wrapper ? WeakObject_create(wrapper->self) : nullptr;
+	}
+
+	WeakRef(const Ref<T>& other) {
+		wrapper = other.get();
+		weakObject = wrapper ? WeakObject_create(wrapper->self) : nullptr;
+	}
+
+	WeakRef(const WeakRef& other) {
+		wrapper = other.wrapper;
+		weakObject = other.weakObject;
+		if (weakObject)
+			WeakObject_obtain(weakObject);
+	}
+
+	WeakRef(WeakRef&& other) {
+		wrapper = other.wrapper;
+		weakObject = other.weakObject;
+		other.wrapper = nullptr;
+		other.weakObject = nullptr;
+	}
+
+	~WeakRef() {
+		reset();
+	}
+
+	WeakRef& operator=(const WeakRef& other) {
+		if (this != &other) {
+			reset();
+			wrapper = other.wrapper;
+			weakObject = other.weakObject;
+			if (weakObject)
+				WeakObject_obtain(weakObject);
+		}
+		return *this;
+	}
+
+	WeakRef& operator=(WeakRef&& other) {
+		if (this != &other) {
+			reset();
+			wrapper = other.wrapper;
+			weakObject = other.weakObject;
+			other.wrapper = nullptr;
+			other.weakObject = nullptr;
+		}
+		return *this;
+	}
+
+	Ref<T> lock() {
+		if (!weakObject || !wrapper)
+			return Ref<T>();
+		Object* object = WeakObject_get(weakObject);
+		if (!object)
+			return Ref<T>();
+		// Cached ObjectWrapper is guaranteed to still be valid.
+		Ref<T> ref(wrapper);
+		// ref now owns a reference so we don't need this one.
+		Object_release(object);
+		return ref;
+	}
+
+	void reset() {
+		if (!weakObject)
+			return;
+		WeakObject_release(weakObject);
+		weakObject = nullptr;
+		wrapper = nullptr;
+	}
+
+	void swap(WeakRef& other) {
+		T* wrapper = this->wrapper;
+		WeakObject* weakObject = this->weakObject;
+		this->wrapper = other.wrapper;
+		this->weakObject = other.weakObject;
+		other.wrapper = wrapper;
+		other.weakObject = weakObject;
+	}
+
+	size_t use_count() const {
+		if (!weakObject)
+			return 0;
+		// Because Object stores its own ref count, a reference must be obtained in order to get it.
+		Object* object = WeakObject_get(weakObject);
+		if (!object)
+			return 0;
+		size_t refs = Object_refs_get(object);
+		Object_release(object);
+		// Don't count the reference we just obtained.
+		return refs - 1;
+	}
+
+	bool expired() const {
+		return weakObject ? WeakObject_expired_get(weakObject) : true;
+	}
+
+	bool operator==(const WeakRef& other) {
+		return wrapper == other.wrapper;
+	}
+
+private:
+	T* wrapper = nullptr;
+	WeakObject* weakObject = nullptr;
+};
 
 
 /** Defines a struct that can calculate the `self` Object pointer of the "parent" class of a proxy class below.
