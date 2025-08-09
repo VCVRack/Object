@@ -74,8 +74,10 @@ public:
 
 	using element_type = T;
 
+	Ref() {}
+
 	// ObjectWrapper constructor
-	explicit Ref(T* wrapper = nullptr) {
+	Ref(T* wrapper) {
 		this->wrapper = wrapper;
 		obtain();
 	}
@@ -178,7 +180,9 @@ public:
 
 	using element_type = T;
 
-	explicit WeakRef(T* wrapper = nullptr) {
+	WeakRef() {}
+
+	WeakRef(T* wrapper) {
 		this->wrapper = wrapper;
 		weakObject = wrapper ? WeakObject_create(wrapper->self) : nullptr;
 	}
