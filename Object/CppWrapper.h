@@ -228,7 +228,7 @@ public:
 		return *this;
 	}
 
-	Ref<T> lock() {
+	Ref<T> lock() const {
 		if (!weakObject || !wrapper)
 			return Ref<T>();
 		Object* object = WeakObject_get(weakObject);
