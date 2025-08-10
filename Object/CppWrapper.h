@@ -157,19 +157,6 @@ private:
 };
 
 
-template <class T>
-T* CppWrapper_cast(Object* self) {
-	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
-	return dynamic_cast<T*>(wrapper);
-}
-
-template <class T>
-const T* CppWrapper_cast(const Object* self) {
-	const ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
-	return dynamic_cast<const T*>(wrapper);
-}
-
-
 /** Weak reference counter for an ObjectWrapper subclass.
 Similar to std::weak_ptr.
 */
@@ -289,6 +276,19 @@ private:
 };
 
 
+template <class T>
+T* CppWrapper_cast(Object* self) {
+	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	return dynamic_cast<T*>(wrapper);
+}
+
+template <class T>
+const T* CppWrapper_cast(const Object* self) {
+	const ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	return dynamic_cast<const T*>(wrapper);
+}
+
+
 /** Defines a 0-byte C++ class that can calculate the `self` Object pointer of the "parent" class of a proxy class below.
 Effectively performs `this - offsetof(Parent, property)` to find the parent pointer.
 This is probably undefined behavior on non-standard-layout types, but it seems to work with virtual classes, virtual inheritance, and multiple inheritance on GCC/Clang x64/arm64.
@@ -305,16 +305,22 @@ This is probably undefined behavior on non-standard-layout types, but it seems t
 	} PROP
 
 
-#define GETTER_PROXY_METHOD(TYPE, CODE) \
-	operator TYPE() const { \
+#define GETTER_PROXY_METHODS(TYPE, CODE) \
+	TYPE get() const { \
 		Object* self = self_get(); \
 		CODE \
+	} \
+	operator TYPE() const { \
+		return get(); \
+	} \
+	TYPE operator->() const { \
+		return get(); \
 	}
 
 
 #define GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER) \
 	PROXY_CLASS(CPPCLASS, PROP, \
-		GETTER_PROXY_METHOD(TYPE, { \
+		GETTER_PROXY_METHODS(TYPE, { \
 			GETTER \
 		}) \
 	)
@@ -334,10 +340,13 @@ Usage:
 	})
 
 
-#define SETTER_PROXY_METHOD(PROP, TYPE, CODE) \
-	TYPE operator=(TYPE PROP) { \
+#define SETTER_PROXY_METHODS(PROP, TYPE, CODE) \
+	void set(TYPE PROP) { \
 		Object* self = self_get(); \
 		CODE \
+	} \
+	TYPE operator=(TYPE PROP) { \
+		set(PROP); \
 		return PROP; \
 	} \
 	TYPE operator=(const Proxy_##PROP& other) { \
@@ -347,10 +356,10 @@ Usage:
 
 #define ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER, SETTER) \
 	PROXY_CLASS(CPPCLASS, PROP, \
-		GETTER_PROXY_METHOD(TYPE, { \
+		GETTER_PROXY_METHODS(TYPE, { \
 			GETTER \
 		}) \
-		SETTER_PROXY_METHOD(PROP, TYPE, { \
+		SETTER_PROXY_METHODS(PROP, TYPE, { \
 			SETTER \
 		}) \
 	)
@@ -372,16 +381,19 @@ Usage:
 	})
 
 
-#define ARRAY_GETTER_PROXY_METHOD(TYPE, CODE) \
-	TYPE operator[](size_t index) const { \
+#define ARRAY_GETTER_PROXY_METHODS(TYPE, CODE) \
+	TYPE get(size_t index) const { \
 		Object* self = self_get(); \
 		CODE \
+	} \
+	TYPE operator[](size_t index) const { \
+		return get(index); \
 	}
 
 
 #define ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER) \
 	PROXY_CLASS(CPPCLASS, PROP, \
-		ARRAY_GETTER_PROXY_METHOD(TYPE, GETTER) \
+		ARRAY_GETTER_PROXY_METHODS(TYPE, GETTER) \
 	)
 
 
@@ -398,16 +410,25 @@ Usage:
 	})
 
 
-#define ARRAY_ACCESSOR_PROXY_METHOD(PROP, TYPE, GETTER, SETTER) \
+#define ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
 	struct ElementAccessorProxy { \
 		Object* self; \
 		size_t index; \
 		ElementAccessorProxy(Object* self, size_t index) : self(self), index(index) {} \
-		operator TYPE() const { \
+		TYPE get() const { \
 			GETTER \
 		} \
-		TYPE operator=(TYPE PROP) { \
+		operator TYPE() const { \
+			return get(); \
+		} \
+		TYPE operator->() const { \
+			return get(); \
+		} \
+		void set(TYPE PROP) { \
 			SETTER \
+		} \
+		TYPE operator=(TYPE PROP) { \
+			set(PROP); \
 			return PROP; \
 		} \
 	}; \
@@ -419,7 +440,7 @@ Usage:
 
 #define ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, CLASS, PROP, TYPE, GETTER, SETTER) \
 	PROXY_CLASS(CPPCLASS, PROP, \
-		ARRAY_ACCESSOR_PROXY_METHOD(PROP, TYPE, GETTER, SETTER) \
+		ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
 	)
 
 
