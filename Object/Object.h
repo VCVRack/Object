@@ -480,6 +480,18 @@ Call macros
 */
 
 
+#define CREATE(CLASS, ...) \
+	CLASS##_create(__VA_ARGS__)
+
+
+#define SPECIALIZE(SELF, CLASS, ...) \
+	CLASS##_specialize(SELF __VA_OPT__(,) __VA_ARGS__)
+
+
+#define IS(SELF, CLASS) \
+	CLASS##_is(SELF)
+
+
 #define SET_METHOD(SELF, CLASS, SUPERCLASS, METHOD) \
 	SUPERCLASS##_##METHOD##_mset(SELF, CLASS##_##METHOD##_mdirect)
 
@@ -495,14 +507,6 @@ Call macros
 #define SET_ACCESSOR(SELF, CLASS, SUPERCLASS, PROP) \
 	SET_GETTER(SELF, CLASS, SUPERCLASS, PROP); \
 	SET_SETTER(SELF, CLASS, SUPERCLASS, PROP)
-
-
-#define SPECIALIZE(SELF, CLASS) \
-	CLASS##_specialize(SELF)
-
-
-#define IS(SELF, CLASS) \
-	CLASS##_is(SELF)
 
 
 #define PUSH_CLASS(SELF, CLASS, DATA) \
