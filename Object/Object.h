@@ -521,20 +521,20 @@ Call macros
 	CLASS##_##METHOD##_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define GET(SELF, CLASS, PROP) \
-	CLASS##_##PROP##_get(SELF)
+#define GET(SELF, CLASS, PROP, ...) \
+	CLASS##_##PROP##_get(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define GET_DIRECT(SELF, CLASS, PROP) \
-	CLASS##_##PROP##_get_mdirect(SELF)
+#define GET_DIRECT(SELF, CLASS, PROP, ...) \
+	CLASS##_##PROP##_get_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define SET(SELF, CLASS, PROP, VALUE) \
-	CLASS##_##PROP##_set(SELF, VALUE)
+#define SET(SELF, CLASS, PROP, ...) \
+	CLASS##_##PROP##_set(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define SET_DIRECT(SELF, CLASS, PROP, VALUE) \
-	CLASS##_##PROP##_set_mdirect(SELF, VALUE)
+#define SET_DIRECT(SELF, CLASS, PROP, ...) \
+	CLASS##_##PROP##_set_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
 /**************************************
