@@ -77,13 +77,13 @@ The `Animal` and `Dog` classes above can be declared by this `.h` header.
 ```c
 // You can add constructor/initialization arguments if needed
 DECLARE_CLASS(Animal, ());
-DECLARE_METHOD_CONST(Animal, speak, void, ());
-DECLARE_ACCESSORS(Animal, legs, int);
+DECLARE_METHOD_VIRTUAL_CONST(Animal, speak, void, ());
+DECLARE_ACCESSORS_VIRTUAL(Animal, legs, int);
 
 /** A domesticated wolf. Specializes Animal. */
 DECLARE_CLASS(Dog, ());
-DECLARE_METHOD(Dog, bury, void, (Object* thing));
-DECLARE_ACCESSORS(Dog, name, const char*);
+DECLARE_METHOD_VIRTUAL(Dog, bury, void, (Object* thing));
+DECLARE_ACCESSORS_VIRTUAL(Dog, name, const char*);
 DECLARE_METHOD_CONST_OVERRIDE(Dog, speak, void, ());
 ```
 
@@ -108,7 +108,7 @@ Without breaking the ABI, you cannot:
 
 ## Cross-language compatibility
 
-Each virtual method such as `DECLARE_METHOD(Foo, bar, int, (int n))` declares the following C functions.
+Each virtual method such as `DECLARE_METHOD_VIRTUAL(Foo, bar, int, (int n))` declares the following C functions.
 ```c
 int Foo_bar(Object* self, int n);
 int Foo_bar_mdirect(Object* self, int n);
@@ -119,7 +119,7 @@ void Foo_bar_mset(Object* self, Foo_bar_m m);
 
 Any language/environment with a C FFI interface can call these functions to interact with your library, including C++, Go, Rust, Zig, Java, C#, Python, PHP, Node, Ruby, Julia, Lua, etc.
 
-The Object struct and each class's data structs are private/opaque and must not be accessed except by these methods.
+The Object struct and each class's data structs are private/opaque and must not be accessed except by these functions.
 
 
 ## Performance

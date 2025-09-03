@@ -38,15 +38,15 @@ DEFINE_CLASS(Animal, (), (), {
 })
 
 
-DEFINE_METHOD_CONST(Animal, speak, void, VOID, (), (), {
+DEFINE_METHOD_VIRTUAL_CONST(Animal, speak, void, VOID, (), (), {
 	printf("I'm an animal with %d legs.\n", GET(self, Animal, legs));
 })
 
 
-DEFINE_ACCESSOR_AUTOMATIC(Animal, legs, int, -1)
+DEFINE_ACCESSOR_VIRTUAL_AUTOMATIC(Animal, legs, int, -1)
 
 
-DEFINE_FUNCTION_CONST(Animal, pet, void, VOID, (), {
+DEFINE_METHOD_CONST(Animal, pet, void, VOID, (), {
 	printf("You pet the animal.\n");
 })
 
@@ -91,7 +91,7 @@ DEFINE_ACCESSOR_OVERRIDE(Dog, legs, int, -1, {
 })
 
 
-DEFINE_ACCESSOR(Dog, name, const char*, "", {
+DEFINE_ACCESSOR_VIRTUAL(Dog, name, const char*, "", {
 	return data->name;
 }, {
 	free(data->name);

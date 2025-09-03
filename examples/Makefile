@@ -20,7 +20,7 @@ all: Animal
 run: Animal
 	time ./$^
 
-Animal: Animal.c.o ../src/Object.cpp.o ../src/WeakRef.c.o
+Animal: Animal.c.o ../src/Object.cpp.o ../src/WeakObject.c.o
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 %.cpp.o: %.cpp
@@ -30,4 +30,4 @@ Animal: Animal.c.o ../src/Object.cpp.o ../src/WeakRef.c.o
 	$(CC) $(CFLAGS) -c -o $@ $^
 
 clean:
-	rm -rfv *.o Animal
+	rm -rfv *.o ../src/*.o Animal

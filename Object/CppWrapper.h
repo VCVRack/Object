@@ -10,9 +10,9 @@ typedef struct ObjectWrapper ObjectWrapper;
 /** Wraps a C++ ObjectWrapper subclass instance so users can interact with your Object API using C++ class syntax.
 */
 DECLARE_CLASS(CppWrapper, ());
-DECLARE_ACCESSOR_FUNCTION(CppWrapper, wrapper, ObjectWrapper*);
+DECLARE_ACCESSOR(CppWrapper, wrapper, ObjectWrapper*);
 typedef void CppWrapper_destructor_f(ObjectWrapper* wrapper);
-DECLARE_ACCESSOR_FUNCTION(CppWrapper, destructor, CppWrapper_destructor_f*);
+DECLARE_ACCESSOR(CppWrapper, destructor, CppWrapper_destructor_f*);
 
 
 #ifdef __cplusplus
