@@ -53,6 +53,9 @@ public:
 		});
 	}
 
+	ObjectWrapper(const ObjectWrapper&) = delete;
+	ObjectWrapper& operator=(const ObjectWrapper&) = delete;
+
 	virtual ~ObjectWrapper() {
 		// printf("bye ObjectWrapper\n");
 		// Remove CppWrapper -> ObjectWrapper association
@@ -61,7 +64,42 @@ public:
 		if (original)
 			Object_release(self);
 	}
+
+	static Object* self_get(ObjectWrapper* wrapper) {
+		if (!wrapper)
+			return NULL;
+		return wrapper->self;
+	}
 };
+
+
+template <class T>
+T* CppWrapper_cast(Object* self) {
+	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	return dynamic_cast<T*>(wrapper);
+}
+
+template <class T>
+const T* CppWrapper_cast(const Object* self) {
+	const ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	return dynamic_cast<const T*>(wrapper);
+}
+
+template <class T>
+T* CppWrapper_castOrCreate(Object* self) {
+	if (!self)
+		return NULL;
+	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	if (wrapper) {
+		// Can be null if wrapper exists but invalid type.
+		return dynamic_cast<T*>(wrapper);
+	}
+	T* t = new T(self);
+	SET(self, CppWrapper, wrapper, t);
+	return t;
+}
+
+
 
 
 /** Reference counter for an ObjectWrapper subclass.
@@ -275,32 +313,6 @@ private:
 	WeakObject* weakObject = nullptr;
 };
 
-
-template <class T>
-T* CppWrapper_cast(Object* self) {
-	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
-	return dynamic_cast<T*>(wrapper);
-}
-
-template <class T>
-const T* CppWrapper_cast(const Object* self) {
-	const ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
-	return dynamic_cast<const T*>(wrapper);
-}
-
-template <class T>
-T* CppWrapper_castOrCreate(Object* self) {
-	if (!self)
-		return NULL;
-	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
-	if (wrapper) {
-		// Can be null if wrapper exists but invalid type.
-		return dynamic_cast<T*>(wrapper);
-	}
-	T* t = new T(self);
-	SET(self, CppWrapper, wrapper, t);
-	return t;
-}
 
 /** Defines a 0-byte C++ class that can calculate the `self` Object pointer of the "parent" class of a proxy class below.
 Effectively performs `this - offsetof(Parent, property)` to find the parent pointer.
