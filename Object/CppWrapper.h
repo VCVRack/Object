@@ -70,6 +70,11 @@ public:
 			return NULL;
 		return wrapper->self;
 	}
+	static const Object* self_get(const ObjectWrapper* wrapper) {
+		if (!wrapper)
+			return NULL;
+		return wrapper->self;
+	}
 };
 
 
