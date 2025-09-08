@@ -331,7 +331,7 @@ struct Proxy : Base {
 template <typename Base>
 struct GetterProxy : Proxy<Base> {
 	using Base::get;
-	using T = decltype(std::declval<GetterProxy>().get());
+	using T = decltype(std::declval<Base>().get());
 	operator T() const { return get(); }
 	T operator->() const { return (T) *this; }
 	T operator+() const { return +(T) *this; }

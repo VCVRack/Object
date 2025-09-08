@@ -15,7 +15,7 @@ Feel free to rewrite this in C if you have a fast map type.
 
 
 /** Size of Class is part of the ABI. */
-static_assert(sizeof(Class) == 256);
+static_assert(sizeof(Class) == 256, "Object Class size must be 256 bytes");
 
 
 struct Object {
