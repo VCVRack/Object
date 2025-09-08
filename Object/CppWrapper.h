@@ -37,8 +37,7 @@ When the Object's methods are called (such as `Animal_speak()`), your overridden
 
 Subclasses can define virtual accessors methods (getters/setters) with names like `getFoo()` or `foo_get()`.
 */
-class ObjectWrapper {
-public:
+struct ObjectWrapper {
 	Object* self;
 	bool original;
 
@@ -63,6 +62,10 @@ public:
 		// Proxy wrappers don't own a reference
 		if (original)
 			Object_release(self);
+	}
+
+	Object* self_get() {
+		return self;
 	}
 
 	static Object* self_get(ObjectWrapper* wrapper) {
@@ -111,8 +114,7 @@ T* CppWrapper_castOrCreate(Object* self) {
 Similar to std::shared_ptr.
 */
 template <class T>
-class Ref {
-public:
+struct Ref {
 	static_assert(std::is_base_of<ObjectWrapper, T>::value, "Ref can only hold references to ObjectWrapper subclasses");
 
 	using element_type = T;
@@ -204,8 +206,7 @@ private:
 Similar to std::weak_ptr.
 */
 template <class T>
-class WeakRef {
-public:
+struct WeakRef {
 	static_assert(std::is_base_of<ObjectWrapper, T>::value, "WeakRef can only hold references to ObjectWrapper subclasses");
 
 	using element_type = T;
@@ -319,41 +320,87 @@ private:
 };
 
 
-/** Defines a 0-byte C++ class that can calculate the `self` Object pointer of the "parent" class of a proxy class below.
+template <typename Base>
+struct Proxy : Base {
+	Proxy() = default;
+	Proxy(const Proxy&) = delete;
+	Proxy& operator=(const Proxy&) = delete;
+};
+
+
+template <typename Base>
+struct GetterProxy : Proxy<Base> {
+	using Base::get;
+	using T = decltype(std::declval<GetterProxy>().get());
+	operator T() const { return get(); }
+	T operator->() const { return (T) *this; }
+	T operator+() const { return +(T) *this; }
+	T operator-() const { return -(T) *this; }
+};
+
+
+template <typename Base>
+struct AccessorProxy : GetterProxy<Base> {
+	using Base::set;
+	using T = typename GetterProxy<Base>::T;
+	AccessorProxy& operator=(const T& t) { set(t); return *this; }
+	AccessorProxy& operator=(const AccessorProxy& other) { return *this = (T) other; }
+	/** The C++ compiler only allows one conversion, so proxy-to-proxy assignment needs an explicit conversion to T. */
+	template <typename OtherBase>
+	AccessorProxy& operator=(const GetterProxy<OtherBase>& other) { return *this = (T) other; }
+	AccessorProxy& operator+=(const T& t) { return *this = (T) *this + t; }
+	AccessorProxy& operator-=(const T& t) { return *this = (T) *this - t; }
+	AccessorProxy& operator*=(const T& t) { return *this = (T) *this * t; }
+	AccessorProxy& operator/=(const T& t) { return *this = (T) *this / t; }
+	AccessorProxy& operator++() { return *this += 1; }
+	T operator++(int) { T tmp = *this; *this = tmp + 1; return tmp; }
+	AccessorProxy& operator--() { return *this -= 1; }
+	T operator--(int) { T tmp = *this; *this = tmp - 1; return tmp; }
+};
+
+
+/** Given a pointer to a struct's member, gets the address of the struct itself.
+
 Effectively performs `this - offsetof(Parent, property)` to find the parent pointer.
-This is probably undefined behavior on non-standard-layout types, but it seems to work with virtual classes, virtual inheritance, and multiple inheritance on GCC/Clang x64/arm64.
+This is undefined behavior on non-standard-layout types, but it works with virtual classes, virtual inheritance, and multiple inheritance on GCC/Clang x64/arm64.
 */
-#define PROXY_CLASS(CPPCLASS, PROP, METHODS) \
-	[[no_unique_address]] \
-	struct Proxy_##PROP { \
-		Object* self_get() const { \
-			size_t offset = (size_t) (char*) &((CPPCLASS*) 0)->PROP; \
-			CPPCLASS* wrapper = (CPPCLASS*) ((char*) this - offset); \
-			return wrapper->self;	\
-		} \
-		METHODS \
-	} PROP
+#define CONTAINER_OF(PTR, STRUCT, MEMBER) \
+	((STRUCT*) ((char*) (PTR) - (char*) &((STRUCT*) 0)->MEMBER))
 
 
-#define GETTER_PROXY_METHODS(TYPE, CODE) \
-	TYPE get() const { \
-		Object* self = self_get(); \
-		CODE \
-	} \
-	operator TYPE() const { \
-		return get(); \
-	} \
-	TYPE operator->() const { \
-		return get(); \
+/** Defines self_get() and makes proxy non-copyable.
+*/
+#define PROXY_METHODS(CPPCLASS, PROP) \
+	Object* self_get() const { \
+		return CONTAINER_OF(this, CPPCLASS, PROP)->self_get();	\
 	}
 
 
+#define PROXY_CUSTOM(CPPCLASS, PROP, METHODS) \
+	struct Proxy_##PROP { \
+		PROXY_METHODS(CPPCLASS, PROP) \
+		METHODS \
+	}; \
+	[[no_unique_address]] \
+	Proxy_##PROP PROP
+
+
+#define GETTER_PROXY_METHODS(TYPE, GETTER) \
+	TYPE get() const { \
+		Object* self = self_get(); \
+		GETTER \
+	}
+
+
+/** Defines a 0-byte C++ proxy class with custom methods.
+*/
 #define GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER) \
-	PROXY_CLASS(CPPCLASS, PROP, \
-		GETTER_PROXY_METHODS(TYPE, { \
-			GETTER \
-		}) \
-	)
+	struct Proxy_##PROP { \
+		PROXY_METHODS(CPPCLASS, PROP) \
+		GETTER_PROXY_METHODS(TYPE, GETTER) \
+	}; \
+	[[no_unique_address]] \
+	GetterProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a const variable but wraps a getter function.
@@ -370,29 +417,21 @@ Usage:
 	})
 
 
-#define SETTER_PROXY_METHODS(PROP, TYPE, CODE) \
+#define ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
+	GETTER_PROXY_METHODS(TYPE, GETTER) \
 	void set(TYPE PROP) { \
 		Object* self = self_get(); \
-		CODE \
-	} \
-	TYPE operator=(TYPE PROP) { \
-		set(PROP); \
-		return PROP; \
-	} \
-	TYPE operator=(const Proxy_##PROP& other) { \
-		return *this = (TYPE) other; \
+		SETTER \
 	}
 
 
 #define ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER, SETTER) \
-	PROXY_CLASS(CPPCLASS, PROP, \
-		GETTER_PROXY_METHODS(TYPE, { \
-			GETTER \
-		}) \
-		SETTER_PROXY_METHODS(PROP, TYPE, { \
-			SETTER \
-		}) \
-	)
+	struct Proxy_##PROP { \
+		PROXY_METHODS(CPPCLASS, PROP) \
+		ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
+	}; \
+	[[no_unique_address]] \
+	AccessorProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a mutable variable but wraps getter/setter functions.
@@ -422,7 +461,7 @@ Usage:
 
 
 #define ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER) \
-	PROXY_CLASS(CPPCLASS, PROP, \
+	PROXY_CUSTOM(CPPCLASS, PROP, \
 		ARRAY_GETTER_PROXY_METHODS(TYPE, GETTER) \
 	)
 
@@ -469,7 +508,7 @@ Usage:
 
 
 #define ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER, SETTER) \
-	PROXY_CLASS(CPPCLASS, PROP, \
+	PROXY_CUSTOM(CPPCLASS, PROP, \
 		ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
 	)
 
