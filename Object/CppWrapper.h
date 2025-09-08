@@ -388,6 +388,7 @@ This is undefined behavior on non-standard-layout types, but it works with virtu
 #define GETTER_PROXY_METHODS(TYPE, GETTER) \
 	TYPE get() const { \
 		Object* self = self_get(); \
+		(void) self; \
 		GETTER \
 	}
 
@@ -413,7 +414,7 @@ Usage:
 */
 #define GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
-		return CLASS##_##PROP##_get(self); \
+		return GET(self, CLASS, PROP); \
 	})
 
 
@@ -421,6 +422,7 @@ Usage:
 	GETTER_PROXY_METHODS(TYPE, GETTER) \
 	void set(TYPE PROP) { \
 		Object* self = self_get(); \
+		(void) self; \
 		SETTER \
 	}
 
@@ -444,15 +446,16 @@ Usage:
 */
 #define ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
-		return CLASS##_##PROP##_get(self); \
+		return GET(self, CLASS, PROP); \
 	}, { \
-		CLASS##_##PROP##_set(self, PROP); \
+		SET(self, CLASS, PROP, PROP); \
 	})
 
 
 #define ARRAY_GETTER_PROXY_METHODS(TYPE, CODE) \
 	TYPE get(size_t index) const { \
 		Object* self = self_get(); \
+		(void) self; \
 		CODE \
 	} \
 	TYPE operator[](size_t index) const { \
@@ -475,7 +478,7 @@ Usage:
 */
 #define ARRAY_GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
-		return CLASS##_##PROP##_get(self, index); \
+		return GET(self, CLASS, PROP, index); \
 	})
 
 
@@ -523,9 +526,9 @@ Usage:
 */
 #define ARRAY_ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
-		return CLASS##_##PROP##_get(self, index); \
+		return GET(self, CLASS, PROP, index); \
 	}, { \
-		CLASS##_##PROP##_set(self, index, PROP); \
+		SET(self, CLASS, PROP, index, PROP); \
 	})
 
 
