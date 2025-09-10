@@ -328,48 +328,18 @@ struct Proxy : Base {
 };
 
 
-template <typename Base>
-struct GetterProxy : Proxy<Base> {
-	using Base::get;
-	using T = decltype(std::declval<Base>().get());
-	operator T() const { return get(); }
-	T operator->() const { return (T) *this; }
-	T operator+() const { return +(T) *this; }
-	T operator-() const { return -(T) *this; }
-};
-
-
-template <typename Base>
-struct AccessorProxy : GetterProxy<Base> {
-	using Base::set;
-	using T = typename GetterProxy<Base>::T;
-	AccessorProxy& operator=(const T& t) { set(t); return *this; }
-	AccessorProxy& operator=(const AccessorProxy& other) { return *this = (T) other; }
-	/** The C++ compiler only allows one conversion, so proxy-to-proxy assignment needs an explicit conversion to T. */
-	template <typename OtherBase>
-	AccessorProxy& operator=(const GetterProxy<OtherBase>& other) { return *this = (T) other; }
-	AccessorProxy& operator+=(const T& t) { return *this = (T) *this + t; }
-	AccessorProxy& operator-=(const T& t) { return *this = (T) *this - t; }
-	AccessorProxy& operator*=(const T& t) { return *this = (T) *this * t; }
-	AccessorProxy& operator/=(const T& t) { return *this = (T) *this / t; }
-	AccessorProxy& operator++() { return *this += 1; }
-	T operator++(int) { T tmp = *this; *this = tmp + 1; return tmp; }
-	AccessorProxy& operator--() { return *this -= 1; }
-	T operator--(int) { T tmp = *this; *this = tmp - 1; return tmp; }
-};
-
-
 /** Given a pointer to a struct's member, gets the address of the struct itself.
 
 Effectively performs `this - offsetof(Parent, property)` to find the parent pointer.
 This is undefined behavior on non-standard-layout types, but it works with virtual classes, virtual inheritance, and multiple inheritance on GCC/Clang x64/arm64.
+
+This article explains it well.
+https://radek.io/posts/magical-container_of-macro/
 */
 #define CONTAINER_OF(PTR, STRUCT, MEMBER) \
 	((STRUCT*) ((char*) (PTR) - (char*) &((STRUCT*) 0)->MEMBER))
 
 
-/** Defines self_get() and makes proxy non-copyable.
-*/
 #define PROXY_METHODS(CPPCLASS, PROP) \
 	Object* self_get() const { \
 		return CONTAINER_OF(this, CPPCLASS, PROP)->self_get();	\
@@ -385,25 +355,6 @@ This is undefined behavior on non-standard-layout types, but it works with virtu
 	Proxy_##PROP PROP
 
 
-#define GETTER_PROXY_METHODS(TYPE, GETTER) \
-	TYPE get() const { \
-		Object* self = self_get(); \
-		(void) self; \
-		GETTER \
-	}
-
-
-/** Defines a 0-byte C++ proxy class with custom methods.
-*/
-#define GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER) \
-	struct Proxy_##PROP { \
-		PROXY_METHODS(CPPCLASS, PROP) \
-		GETTER_PROXY_METHODS(TYPE, GETTER) \
-	}; \
-	[[no_unique_address]] \
-	GetterProxy<Proxy_##PROP> PROP
-
-
 /** Behaves like a const variable but wraps a getter function.
 Zero overhead: 0 bytes, compiles to C function calls.
 Example:
@@ -412,10 +363,66 @@ Example:
 Usage:
 	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
 */
+template <typename Base>
+struct GetterProxy : Proxy<Base> {
+	using T = decltype(std::declval<Base>().get());
+
+	operator T() const { return Base::get(); }
+	T operator->() const { return (T) *this; }
+	T operator+() const { return +(T) *this; }
+	T operator-() const { return -(T) *this; }
+};
+
+
+#define GETTER_PROXY_METHODS(TYPE, GETTER) \
+	TYPE get() const { \
+		Object* self = self_get(); \
+		(void) self; \
+		GETTER \
+	}
+
+
+#define GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER) \
+	struct Proxy_##PROP { \
+		PROXY_METHODS(CPPCLASS, PROP) \
+		GETTER_PROXY_METHODS(TYPE, GETTER) \
+	}; \
+	[[no_unique_address]] \
+	const GetterProxy<Proxy_##PROP> PROP
+
+
 #define GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
 		return GET(self, CLASS, PROP); \
 	})
+
+
+/** Behaves like a mutable variable but wraps getter/setter functions.
+Example:
+	ACCESSOR_PROXY(AnimalWrapper, Animal, legs, int);
+
+Usage:
+	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
+	animalWrapper->legs = 4; // Calls Animal_legs_set(animal, 3);
+*/
+template <typename Base>
+struct AccessorProxy : GetterProxy<Base> {
+	using T = typename GetterProxy<Base>::T;
+
+	AccessorProxy& operator=(const T& t) { Base::set(t); return *this; }
+	AccessorProxy& operator=(const AccessorProxy& other) { return *this = (T) other; }
+	/** The C++ compiler only allows one conversion, so proxy-to-proxy assignment needs an explicit conversion to T. */
+	template <typename OtherBase>
+	AccessorProxy& operator=(const GetterProxy<OtherBase>& other) { return *this = (T) other; }
+	AccessorProxy& operator+=(const T& t) { return *this = (T) *this + t; }
+	AccessorProxy& operator-=(const T& t) { return *this = (T) *this - t; }
+	AccessorProxy& operator*=(const T& t) { return *this = (T) *this * t; }
+	AccessorProxy& operator/=(const T& t) { return *this = (T) *this / t; }
+	AccessorProxy& operator++() { return *this += 1; }
+	T operator++(int) { T tmp = *this; *this = tmp + 1; return tmp; }
+	AccessorProxy& operator--() { return *this -= 1; }
+	T operator--(int) { T tmp = *this; *this = tmp - 1; return tmp; }
+};
 
 
 #define ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
@@ -436,14 +443,6 @@ Usage:
 	AccessorProxy<Proxy_##PROP> PROP
 
 
-/** Behaves like a mutable variable but wraps getter/setter functions.
-Example:
-	ACCESSOR_PROXY(AnimalWrapper, Animal, legs, int);
-
-Usage:
-	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
-	animalWrapper->legs = 4; // Calls Animal_legs_set(animal, 3);
-*/
 #define ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
 		return GET(self, CLASS, PROP); \
@@ -452,21 +451,39 @@ Usage:
 	})
 
 
-#define ARRAY_GETTER_PROXY_METHODS(TYPE, CODE) \
-	TYPE get(size_t index) const { \
-		Object* self = self_get(); \
-		(void) self; \
-		CODE \
-	} \
-	TYPE operator[](size_t index) const { \
-		return get(index); \
-	}
+template <typename Proxy>
+struct ArrayGetterProxyIterator {
+	Proxy& proxy;
+	size_t i;
 
+	using iterator_category = std::random_access_iterator_tag;
+	using value_type = typename Proxy::value_type;
+	using difference_type = std::ptrdiff_t;
 
-#define ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER) \
-	PROXY_CUSTOM(CPPCLASS, PROP, \
-		ARRAY_GETTER_PROXY_METHODS(TYPE, GETTER) \
-	)
+	ArrayGetterProxyIterator(Proxy& proxy, size_t i) : proxy(proxy), i(i) {}
+
+	value_type operator*() const { return proxy[i]; }
+
+	ArrayGetterProxyIterator& operator++() { ++i; return *this; }
+	ArrayGetterProxyIterator operator++(int) { ArrayGetterProxyIterator tmp = *this; ++i; return tmp; }
+	ArrayGetterProxyIterator& operator--() { --i; return *this; }
+	ArrayGetterProxyIterator operator--(int) { ArrayGetterProxyIterator tmp = *this; --i; return tmp; }
+
+	ArrayGetterProxyIterator& operator+=(difference_type n) { i += n; return *this; }
+	ArrayGetterProxyIterator& operator-=(difference_type n) { i -= n; return *this; }
+	ArrayGetterProxyIterator operator+(difference_type n) const { return ArrayGetterProxyIterator(proxy, i + n); }
+	ArrayGetterProxyIterator operator-(difference_type n) const { return ArrayGetterProxyIterator(proxy, i - n); }
+	difference_type operator-(const ArrayGetterProxyIterator& other) const { return i - other.i; }
+
+	value_type operator[](difference_type n) const { return proxy[i + n]; }
+
+	bool operator==(const ArrayGetterProxyIterator& other) const { return i == other.i; }
+	bool operator!=(const ArrayGetterProxyIterator& other) const { return !(*this == other); }
+	bool operator<(const ArrayGetterProxyIterator& other) const { return i < other.i; }
+	bool operator>(const ArrayGetterProxyIterator& other) const { return i > other.i; }
+	bool operator<=(const ArrayGetterProxyIterator& other) const { return i <= other.i; }
+	bool operator>=(const ArrayGetterProxyIterator& other) const { return i >= other.i; }
+};
 
 
 /** Behaves like a const array but wraps an element getter function.
@@ -474,58 +491,147 @@ Example:
 	ARRAY_GETTER_PROXY(AnimalWrapper, Animal, toes, int);
 
 Usage:
+	size_t toesLen = animalWrapper->toes.size(); // Calls Animal_toes_length_get(animal);
 	int toes = animalWrapper->toes[leg]; // Calls Animal_toes_get(animal, leg);
 */
+template <typename Base>
+struct ArrayGetterProxy : Proxy<Base> {
+	using value_type = decltype(std::declval<Base>().get(0));
+	using size_type = size_t;
+	using difference_type = std::ptrdiff_t;
+
+	value_type operator[](size_t index) const { return (value_type) Base::get(index); }
+	size_t size() const { return Base::length_get(); }
+	bool empty() const { return size() == 0; }
+
+	using iterator = ArrayGetterProxyIterator<const ArrayGetterProxy>;
+	using const_iterator = iterator;
+
+	iterator begin() { return iterator(*this, 0); }
+	const_iterator begin() const { return const_iterator(*this, 0); }
+
+	iterator end() { return iterator(*this, size()); }
+	const_iterator end() const { return const_iterator(*this, size()); }
+
+	std::reverse_iterator<iterator> rbegin() { return std::reverse_iterator<iterator>(end()); }
+	std::reverse_iterator<const_iterator> rbegin() const { return std::reverse_iterator<const_iterator>(end()); }
+
+	std::reverse_iterator<iterator> rend() { return std::reverse_iterator<iterator>(begin()); }
+	std::reverse_iterator<const_iterator> rend() const { return std::reverse_iterator<const_iterator>(begin()); }
+};
+
+
+#define ARRAY_GETTER_PROXY_METHODS(TYPE, LENGTH_GETTER, GETTER) \
+	size_t length_get() const { \
+		Object* self = self_get(); \
+		(void) self; \
+		LENGTH_GETTER \
+	} \
+	TYPE get(size_t index) const { \
+		Object* self = self_get(); \
+		(void) self; \
+		GETTER \
+	}
+
+
+#define ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, LENGTH_GETTER, GETTER) \
+	struct Proxy_##PROP { \
+		PROXY_METHODS(CPPCLASS, PROP) \
+		ARRAY_GETTER_PROXY_METHODS(TYPE, LENGTH_GETTER, GETTER) \
+	}; \
+	[[no_unique_address]] \
+	const ArrayGetterProxy<Proxy_##PROP> PROP
+
+
 #define ARRAY_GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
+		return GET(self, CLASS, PROP##_length); \
+	}, { \
 		return GET(self, CLASS, PROP, index); \
 	})
 
 
-#define ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
-	struct ElementAccessorProxy { \
-		Object* self; \
-		size_t index; \
-		ElementAccessorProxy(Object* self, size_t index) : self(self), index(index) {} \
-		TYPE get() const { \
-			GETTER \
-		} \
-		operator TYPE() const { \
-			return get(); \
-		} \
-		TYPE operator->() const { \
-			return get(); \
-		} \
-		void set(TYPE PROP) { \
-			SETTER \
-		} \
-		TYPE operator=(TYPE PROP) { \
-			set(PROP); \
-			return PROP; \
-		} \
-	}; \
-	ElementAccessorProxy operator[](size_t index) { \
+template <typename Proxy>
+struct ArrayAccessorProxyIterator : ArrayGetterProxyIterator<Proxy> {
+	using Base = ArrayGetterProxyIterator<Proxy>;
+	using value_type = typename Base::value_type;
+	using difference_type = typename Base::difference_type;
+
+	value_type& operator*() const { return Base::proxy[Base::i]; }
+	value_type* operator->() const { return &Base::proxy[Base::i]; }
+	value_type& operator[](difference_type n) const { return Base::proxy[Base::i + n]; }
+};
+
+
+template <typename Base>
+struct ArrayAccessorProxy : Proxy<Base> {
+	using T = decltype(std::declval<Base>().get());
+	using size_type = size_t;
+	using difference_type = std::ptrdiff_t;
+
+	size_t size() const { return Base::length_get(); }
+	bool empty() const { return size() == 0; }
+
+	// TODO Handle const ArrayAccessorProxy
+	struct ElementAccessor {
+		ArrayAccessorProxy& proxy;
+		size_t index;
+		ElementAccessor(ArrayAccessorProxy& proxy, size_t index) : proxy(proxy), index(index) {}
+		operator T() const { return proxy.get(index); }
+		T operator->() const { return (T) *this; }
+		T operator+() const { return +(T) *this; }
+		T operator-() const { return -(T) *this; }
+		ElementAccessor& operator=(const T& t) { proxy.set(index, t); return *this; }
+		ElementAccessor& operator=(const ElementAccessor& other) { return *this = (T) other; }
+		ElementAccessor& operator+=(const T& t) { return *this = (T) *this + t; }
+		ElementAccessor& operator-=(const T& t) { return *this = (T) *this - t; }
+		ElementAccessor& operator*=(const T& t) { return *this = (T) *this * t; }
+		ElementAccessor& operator/=(const T& t) { return *this = (T) *this / t; }
+		ElementAccessor& operator++() { return *this += 1; }
+		T operator++(int) { T tmp = *this; *this = tmp + 1; return tmp; }
+		ElementAccessor& operator--() { return *this -= 1; }
+		T operator--(int) { T tmp = *this; *this = tmp - 1; return tmp; }
+	};
+	using value_type = ElementAccessor;
+
+	ElementAccessor operator[](size_t index) { return ElementAccessor(*this, index); }
+
+	using iterator = ArrayAccessorProxyIterator<ArrayAccessorProxy>;
+	using const_iterator = ArrayAccessorProxyIterator<const ArrayAccessorProxy>;
+
+	iterator begin() { return iterator(*this, 0); }
+	const_iterator begin() const { return const_iterator(*this, 0); }
+	iterator end() { return iterator(*this, size()); }
+	const_iterator end() const { return const_iterator(*this, size()); }
+	std::reverse_iterator<iterator> rbegin() { return std::reverse_iterator<iterator>(end()); }
+	std::reverse_iterator<const_iterator> rbegin() const { return std::reverse_iterator<const_iterator>(end()); }
+	std::reverse_iterator<iterator> rend() { return std::reverse_iterator<iterator>(begin()); }
+	std::reverse_iterator<const_iterator> rend() const { return std::reverse_iterator<const_iterator>(begin()); }
+};
+
+
+#define ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, LENGTH_GETTER, GETTER, SETTER) \
+	ARRAY_GETTER_PROXY_METHODS(TYPE, LENGTH_GETTER, GETTER) \
+	void set(size_t index, TYPE PROP) { \
 		Object* self = self_get(); \
-		return ElementAccessorProxy(self, index); \
+		(void) self; \
+		SETTER \
 	}
 
 
-#define ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER, SETTER) \
-	PROXY_CUSTOM(CPPCLASS, PROP, \
-		ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
-	)
+#define ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, LENGTH_GETTER, GETTER, SETTER) \
+	struct Proxy_##PROP { \
+		PROXY_METHODS(CPPCLASS, PROP) \
+		ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, LENGTH_GETTER, GETTER, SETTER) \
+	}; \
+	[[no_unique_address]] \
+	ArrayAccessorProxy<Proxy_##PROP> PROP
 
 
-/** Behaves like a mutable array but wraps element getter/setter functions.
-Example:
-	ARRAY_ACCESSOR_PROXY(AnimalWrapper, Animal, toes, int);
-
-Usage:
-	int toes = animalWrapper->toes[leg]; // Calls Animal_toes_get(animal, leg);
-	animalWrapper->toes[leg] = 5; // Calls Animal_toes_set(animal, leg, 5);
-*/
 #define ARRAY_ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
-ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
+	ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
+		return GET(self, CLASS, PROP##_length); \
+	}, { \
 		return GET(self, CLASS, PROP, index); \
 	}, { \
 		SET(self, CLASS, PROP, index, PROP); \
