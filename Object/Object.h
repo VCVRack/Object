@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdlib.h>
-#include <stdbool.h>
+#include <stdlib.h> // for size_t
+#include <stdbool.h> // for bool, true, false
 
 
 #ifdef __cplusplus
@@ -52,7 +52,7 @@ Superclasses are defined in your implementation, not in your header.
 Example:
 	DECLARE_CLASS(Animal, (const char* name, int legs))
 
-declares the following functions.
+Declares the following functions.
 
 Constructor:
 	Object* Animal_create(Object* self, const char* name, int legs);
@@ -224,6 +224,38 @@ Example:
 #define DECLARE_ACCESSOR_OVERRIDE(CLASS, PROP, TYPE) \
 	DECLARE_GETTER_OVERRIDE(CLASS, PROP, TYPE); \
 	DECLARE_SETTER_OVERRIDE(CLASS, PROP, TYPE)
+
+
+/** Declares a non-virtual indexed getter method for a class.
+PROP should be a singular noun.
+
+Example:
+	DECLARE_ARRAY_GETTER(Animal, child, Object*)
+
+Declares the functions:
+	size_t Animal_child_count_get(const Object* self);
+	Object* Animal_child_get(const Object* self, size_t index);
+*/
+#define DECLARE_ARRAY_GETTER(CLASS, PROP, TYPE) \
+	DECLARE_GETTER(CLASS, PROP##_count, size_t); \
+	DECLARE_METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index))
+
+
+/** Declares a non-virtual indexed getter/setter method pair for a class.
+PROP should be a singular noun.
+
+Example:
+	DECLARE_ARRAY_ACCESSOR(Animal, child, Object*)
+
+Declares the functions:
+	size_t Animal_child_count_get(const Object* self);
+	Object* Animal_child_get(const Object* self, size_t index);
+	void Animal_child_set(const Object* self, size_t index, Object* element);
+*/
+#define DECLARE_ARRAY_ACCESSOR(CLASS, PROP, TYPE) \
+	DECLARE_GETTER(CLASS, PROP##_count, size_t); \
+	DECLARE_METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index)); \
+	DECLARE_METHOD(CLASS, PROP##_set, void, (size_t index, TYPE PROP))
 
 
 /**************************************
@@ -479,6 +511,16 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 #define DEFINE_ACCESSOR_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
 	DEFINE_GETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, GETTER) \
 	DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, SETTER)
+
+
+#define DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNT, GETTER) \
+	DEFINE_GETTER(CLASS, PROP##_count, size_t, 0, COUNT) \
+	DEFINE_METHOD_CONST(CLASS, PROP##_get, TYPE, DEFAULT, (size_t index), GETTER)
+
+
+#define DEFINE_ARRAY_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNT, GETTER, SETTER) \
+	DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNT, GETTER) \
+	DEFINE_METHOD(CLASS, PROP##_set, void, VOID, (size_t index, TYPE PROP), SETTER)
 
 
 #define STORE_METHOD(CLASS, METHOD) \
