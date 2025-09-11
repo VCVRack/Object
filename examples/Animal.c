@@ -6,7 +6,7 @@
 
 /** Duplicates a null-terminated string like the POSIX function but gracefully handles NULL.
 */
-char* strdup2(const char *s) {
+char* strdup2(const char* s) {
 	if (!s)
 		return NULL;
 	size_t len = strlen(s);

@@ -17,9 +17,9 @@ ACCESSOR(CppWrapper, destructor, CppWrapper_destructor_f*);
 
 #ifdef __cplusplus
 
-// #include <stdio.h>
 #include <assert.h>
 #include <type_traits>
+#include <iterator>
 
 
 /** Base class that wraps an Object and its methods.
@@ -56,7 +56,6 @@ struct ObjectWrapper {
 	ObjectWrapper& operator=(const ObjectWrapper&) = delete;
 
 	virtual ~ObjectWrapper() {
-		// printf("bye ObjectWrapper\n");
 		// Remove CppWrapper -> ObjectWrapper association
 		CppWrapper_wrapper_set(self, NULL);
 		// Proxy wrappers don't own a reference

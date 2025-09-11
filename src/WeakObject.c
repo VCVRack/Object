@@ -1,6 +1,7 @@
+#include <Object/WeakObject.h>
+#include <stdlib.h> // for calloc and free
 #include <stdatomic.h>
 #include <assert.h>
-#include <Object/WeakObject.h>
 
 
 struct WeakObject {

@@ -1,5 +1,5 @@
 #include <Object/CppWrapper.h>
-// #include <stdio.h>
+#include <stdlib.h> // for calloc and free
 
 
 struct CppWrapper {
@@ -12,7 +12,6 @@ DEFINE_CLASS(CppWrapper, (), (), {
 	CppWrapper* data = calloc(1, sizeof(CppWrapper));
 	PUSH_CLASS(self, CppWrapper, data);
 }, {
-	// printf("bye CppWrapper\n");
 	// `wrapper` will be NULL if it was already deleted
 	if (data->destructor && data->wrapper)
 		data->destructor(data->wrapper);
