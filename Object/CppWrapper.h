@@ -355,14 +355,6 @@ https://radek.io/posts/magical-container_of-macro/
 	Proxy_##PROP PROP
 
 
-/** Behaves like a const variable but wraps a getter function.
-Zero overhead: 0 bytes, compiles to C function calls.
-Example:
-	GETTER_PROXY(AnimalWrapper, Animal, legs, int);
-
-Usage:
-	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
-*/
 template <typename Base>
 struct GetterProxy : Proxy<Base> {
 	using T = decltype(std::declval<Base>().get());
@@ -391,20 +383,20 @@ struct GetterProxy : Proxy<Base> {
 	const GetterProxy<Proxy_##PROP> PROP
 
 
+/** Behaves like a const variable but wraps a getter function.
+Zero overhead: 0 bytes, compiles to C function calls.
+Example:
+	GETTER_PROXY(AnimalWrapper, Animal, legs, int);
+
+Usage:
+	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
+*/
 #define GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
 		return GET(self, CLASS, PROP); \
 	})
 
 
-/** Behaves like a mutable variable but wraps getter/setter functions.
-Example:
-	ACCESSOR_PROXY(AnimalWrapper, Animal, legs, int);
-
-Usage:
-	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
-	animalWrapper->legs = 4; // Calls Animal_legs_set(animal, 3);
-*/
 template <typename Base>
 struct AccessorProxy : GetterProxy<Base> {
 	using T = typename GetterProxy<Base>::T;
@@ -443,6 +435,14 @@ struct AccessorProxy : GetterProxy<Base> {
 	AccessorProxy<Proxy_##PROP> PROP
 
 
+/** Behaves like a mutable variable but wraps getter/setter functions.
+Example:
+	ACCESSOR_PROXY(AnimalWrapper, Animal, legs, int);
+
+Usage:
+	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
+	animalWrapper->legs = 4; // Calls Animal_legs_set(animal, 3);
+*/
 #define ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
 		return GET(self, CLASS, PROP); \
@@ -459,10 +459,13 @@ struct ArrayGetterProxyIterator {
 	using iterator_category = std::random_access_iterator_tag;
 	using value_type = typename Proxy::value_type;
 	using difference_type = std::ptrdiff_t;
+	using reference = value_type;
+	using pointer = value_type;
 
 	ArrayGetterProxyIterator(Proxy& proxy, size_t i) : proxy(proxy), i(i) {}
 
-	value_type operator*() const { return proxy[i]; }
+	reference operator*() const { return proxy[i]; }
+	pointer operator->() const { return &proxy[i]; }
 
 	ArrayGetterProxyIterator& operator++() { ++i; return *this; }
 	ArrayGetterProxyIterator operator++(int) { ArrayGetterProxyIterator tmp = *this; ++i; return tmp; }
@@ -486,14 +489,6 @@ struct ArrayGetterProxyIterator {
 };
 
 
-/** Behaves like a const array but wraps an element getter function.
-Example:
-	ARRAY_GETTER_PROXY(AnimalWrapper, Animal, toes, int);
-
-Usage:
-	size_t toesLen = animalWrapper->toes.size(); // Calls Animal_toes_length_get(animal);
-	int toes = animalWrapper->toes[leg]; // Calls Animal_toes_get(animal, leg);
-*/
 template <typename Base>
 struct ArrayGetterProxy : Proxy<Base> {
 	using value_type = decltype(std::declval<Base>().get(0));
@@ -501,7 +496,7 @@ struct ArrayGetterProxy : Proxy<Base> {
 	using difference_type = std::ptrdiff_t;
 
 	value_type operator[](size_t index) const { return (value_type) Base::get(index); }
-	size_t size() const { return Base::length_get(); }
+	size_t size() const { return Base::count_get(); }
 	bool empty() const { return size() == 0; }
 
 	using iterator = ArrayGetterProxyIterator<const ArrayGetterProxy>;
@@ -521,11 +516,11 @@ struct ArrayGetterProxy : Proxy<Base> {
 };
 
 
-#define ARRAY_GETTER_PROXY_METHODS(TYPE, LENGTH_GETTER, GETTER) \
-	size_t length_get() const { \
+#define ARRAY_GETTER_PROXY_METHODS(TYPE, COUNT, GETTER) \
+	size_t count_get() const { \
 		Object* self = self_get(); \
 		(void) self; \
-		LENGTH_GETTER \
+		COUNT \
 	} \
 	TYPE get(size_t index) const { \
 		Object* self = self_get(); \
@@ -534,18 +529,28 @@ struct ArrayGetterProxy : Proxy<Base> {
 	}
 
 
-#define ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, LENGTH_GETTER, GETTER) \
-	struct Proxy_##PROP { \
-		PROXY_METHODS(CPPCLASS, PROP) \
-		ARRAY_GETTER_PROXY_METHODS(TYPE, LENGTH_GETTER, GETTER) \
+#define ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, COUNT, GETTER) \
+	struct Proxy_##PROPS { \
+		PROXY_METHODS(CPPCLASS, PROPS) \
+		ARRAY_GETTER_PROXY_METHODS(TYPE, COUNT, GETTER) \
 	}; \
 	[[no_unique_address]] \
-	const ArrayGetterProxy<Proxy_##PROP> PROP
+	const ArrayGetterProxy<Proxy_##PROPS> PROPS
 
 
-#define ARRAY_GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
-	ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
-		return GET(self, CLASS, PROP##_length); \
+/** Behaves like a const array but wraps an element getter function.
+PROPS should be plural since C++ arrays are typically plural.
+
+Example:
+	ARRAY_GETTER_PROXY(AnimalWrapper, Animal, child, children, Object*);
+
+Usage:
+	size_t childrenSize = animalWrapper->children.size(); // Calls Animal_child_count_get(animal);
+	Object* child = animalWrapper->children[index]; // Calls Animal_child_get(animal, index);
+*/
+#define ARRAY_GETTER_PROXY(CPPCLASS, CLASS, PROP, PROPS, TYPE) \
+	ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, { \
+		return GET(self, CLASS, PROP##_count); \
 	}, { \
 		return GET(self, CLASS, PROP, index); \
 	})
@@ -556,20 +561,23 @@ struct ArrayAccessorProxyIterator : ArrayGetterProxyIterator<Proxy> {
 	using Base = ArrayGetterProxyIterator<Proxy>;
 	using value_type = typename Base::value_type;
 	using difference_type = typename Base::difference_type;
+	using reference = value_type;
+	using pointer = value_type*;
+	using Base::Base;
 
-	value_type& operator*() const { return Base::proxy[Base::i]; }
-	value_type* operator->() const { return &Base::proxy[Base::i]; }
-	value_type& operator[](difference_type n) const { return Base::proxy[Base::i + n]; }
+	reference operator*() const { return Base::proxy[Base::i]; }
+	pointer operator->() const { return &Base::proxy[Base::i]; }
+	reference operator[](difference_type n) const { return Base::proxy[Base::i + n]; }
 };
 
 
 template <typename Base>
 struct ArrayAccessorProxy : Proxy<Base> {
-	using T = decltype(std::declval<Base>().get());
+	using T = decltype(std::declval<Base>().get(0));
 	using size_type = size_t;
 	using difference_type = std::ptrdiff_t;
 
-	size_t size() const { return Base::length_get(); }
+	size_t size() const { return Base::count_get(); }
 	bool empty() const { return size() == 0; }
 
 	// TODO Handle const ArrayAccessorProxy
@@ -610,8 +618,8 @@ struct ArrayAccessorProxy : Proxy<Base> {
 };
 
 
-#define ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, LENGTH_GETTER, GETTER, SETTER) \
-	ARRAY_GETTER_PROXY_METHODS(TYPE, LENGTH_GETTER, GETTER) \
+#define ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, COUNT, GETTER, SETTER) \
+	ARRAY_GETTER_PROXY_METHODS(TYPE, COUNT, GETTER) \
 	void set(size_t index, TYPE PROP) { \
 		Object* self = self_get(); \
 		(void) self; \
@@ -619,18 +627,28 @@ struct ArrayAccessorProxy : Proxy<Base> {
 	}
 
 
-#define ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, LENGTH_GETTER, GETTER, SETTER) \
-	struct Proxy_##PROP { \
-		PROXY_METHODS(CPPCLASS, PROP) \
-		ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, LENGTH_GETTER, GETTER, SETTER) \
+#define ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, PROPS, TYPE, COUNT, GETTER, SETTER) \
+	struct Proxy_##PROPS { \
+		PROXY_METHODS(CPPCLASS, PROPS) \
+		ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, COUNT, GETTER, SETTER) \
 	}; \
 	[[no_unique_address]] \
-	ArrayAccessorProxy<Proxy_##PROP> PROP
+	ArrayAccessorProxy<Proxy_##PROPS> PROPS
 
 
-#define ARRAY_ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
-	ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
-		return GET(self, CLASS, PROP##_length); \
+/** Behaves like a mutable array but wraps an element getter/setter function pair.
+PROPS should be plural since C++ arrays are typically plural.
+
+Example:
+	ARRAY_ACCESSOR_PROXY(AnimalWrapper, Animal, child, children, Object*);
+
+Usage:
+	// Everything in ARRAY_GETTER_PROXY, plus
+	animalWrapper->children[index] = child; // Calls Animal_child_set(animal, index, child);
+*/
+#define ARRAY_ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, PROPS, TYPE) \
+	ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, PROPS, TYPE, { \
+		return GET(self, CLASS, PROP##_count); \
 	}, { \
 		return GET(self, CLASS, PROP, index); \
 	}, { \
