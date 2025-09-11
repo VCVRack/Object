@@ -50,7 +50,7 @@ INITARGS are the arguments of the create/specialize functions such as `(const ch
 Superclasses are defined in your implementation, not in your header.
 
 Example:
-	DECLARE_CLASS(Animal, (const char* name, int legs))
+	CLASS(Animal, (const char* name, int legs))
 
 Declares the following functions.
 
@@ -63,7 +63,7 @@ Specialization function:
 Type checking function:
 	bool Animal_is(const Object* self);
 */
-#define DECLARE_CLASS(CLASS, INITARGS) \
+#define CLASS(CLASS, INITARGS) \
 	extern const Class CLASS##_class; \
 	EXTERNC Object* CLASS##_create(EXPAND INITARGS); \
 	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS); \
@@ -72,15 +72,15 @@ Type checking function:
 
 /** Declares a non-virtual method for a class.
 This method cannot be overridden by specialized classes (subclasses).
-Similar to DECLARE_METHOD_VIRTUAL but doesn't define method getters/setters.
+Similar to METHOD_VIRTUAL but doesn't define method getters/setters.
 */
-#define DECLARE_METHOD(CLASS, METHOD, RETTYPE, ARGTYPES) \
+#define METHOD(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES)
 
 
 /** Declares a non-virtual method for a class with a `const Object*` argument.
 */
-#define DECLARE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
+#define METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES)
 
 
@@ -92,7 +92,7 @@ RETTYPE is the return value such as `void`.
 ARGTYPES are the arguments such as `(const char* name, int loudness)`.
 
 Example:
-	DECLARE_METHOD_VIRTUAL(Animal, speak, void, (const char* name))
+	METHOD_VIRTUAL(Animal, speak, void, (const char* name))
 
 Declares the following functions.
 
@@ -108,7 +108,7 @@ Method getter:
 Method setter:
 	void Animal_speak_mset(Object* self, Animal_speak_m m);
 */
-#define DECLARE_METHOD_VIRTUAL(CLASS, METHOD, RETTYPE, ARGTYPES) \
+#define METHOD_VIRTUAL(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES); \
@@ -118,11 +118,11 @@ Method setter:
 
 /** Declares a method that overrides a different class's virtual method.
 */
-#define DECLARE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
+#define METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
 
 
-#define DECLARE_METHOD_VIRTUAL_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
+#define METHOD_VIRTUAL_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES); \
@@ -130,7 +130,7 @@ Method setter:
 	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m)
 
 
-#define DECLARE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
+#define METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
 
 
@@ -141,20 +141,20 @@ PROP is the property name such as `name`.
 TYPE is the type of the property such as `const char*`.
 
 Example:
-	DECLARE_GETTER(Animal, name, const char*)
+	GETTER(Animal, name, const char*)
 
 Declares the function:
 	const char* Animal_name_get(const Object* self);
 */
-#define DECLARE_GETTER(CLASS, PROP, TYPE) \
-	DECLARE_METHOD_CONST(CLASS, PROP##_get, TYPE, ())
+#define GETTER(CLASS, PROP, TYPE) \
+	METHOD_CONST(CLASS, PROP##_get, TYPE, ())
 
 
 /** Declares a virtual getter method for a class.
-Same arguments as DECLARE_GETTER().
+Same arguments as GETTER().
 
 Example:
-	DECLARE_GETTER_VIRTUAL(Animal, name, const char*)
+	GETTER_VIRTUAL(Animal, name, const char*)
 
 Declares the functions:
 	const char* Animal_name_get(const Object* self);
@@ -162,34 +162,34 @@ Declares the functions:
 	Animal_name_get_m Animal_name_get_mget(const Object* self);
 	void Animal_name_get_mset(Object* self, Animal_name_get_m m);
 */
-#define DECLARE_GETTER_VIRTUAL(CLASS, PROP, TYPE) \
-	DECLARE_METHOD_VIRTUAL_CONST(CLASS, PROP##_get, TYPE, ())
+#define GETTER_VIRTUAL(CLASS, PROP, TYPE) \
+	METHOD_VIRTUAL_CONST(CLASS, PROP##_get, TYPE, ())
 
 
 /** Declares a getter method that overrides a different class's virtual getter.
 */
-#define DECLARE_GETTER_OVERRIDE(CLASS, PROP, TYPE) \
-	DECLARE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, ())
+#define GETTER_OVERRIDE(CLASS, PROP, TYPE) \
+	METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, ())
 
 
 /** Declares a non-virtual setter method for a class.
-Same arguments as DECLARE_GETTER().
+Same arguments as GETTER().
 
 Example:
-	DECLARE_SETTER(Animal, name, const char*)
+	SETTER(Animal, name, const char*)
 
 Declares the function:
 	void Animal_name_set(const Object* self, const char* name);
 */
-#define DECLARE_SETTER(CLASS, PROP, TYPE) \
-	DECLARE_METHOD(CLASS, PROP##_set, void, (TYPE PROP))
+#define SETTER(CLASS, PROP, TYPE) \
+	METHOD(CLASS, PROP##_set, void, (TYPE PROP))
 
 
 /** Declares a virtual setter method for a class.
-Same arguments as DECLARE_GETTER().
+Same arguments as GETTER().
 
 Example:
-	DECLARE_SETTER_VIRTUAL(Animal, name, const char*)
+	SETTER_VIRTUAL(Animal, name, const char*)
 
 Declares the functions:
 	void Animal_name_set(const Object* self, const char* name);
@@ -197,65 +197,65 @@ Declares the functions:
 	Animal_name_set_m Animal_name_set_mget(const Object* self);
 	void Animal_name_set_mset(Object* self, Animal_name_set_m m);
 */
-#define DECLARE_SETTER_VIRTUAL(CLASS, PROP, TYPE) \
-	DECLARE_METHOD_VIRTUAL(CLASS, PROP##_set, void, (TYPE PROP))
+#define SETTER_VIRTUAL(CLASS, PROP, TYPE) \
+	METHOD_VIRTUAL(CLASS, PROP##_set, void, (TYPE PROP))
 
 
-#define DECLARE_SETTER_OVERRIDE(CLASS, PROP, TYPE) \
-	DECLARE_METHOD_OVERRIDE(CLASS, PROP##_set, void, (TYPE PROP))
+#define SETTER_OVERRIDE(CLASS, PROP, TYPE) \
+	METHOD_OVERRIDE(CLASS, PROP##_set, void, (TYPE PROP))
 
 
 /** Declares a non-virtual getter/setter method pair for a class.
-Same arguments as DECLARE_GETTER().
+Same arguments as GETTER().
 
 Example:
-	DECLARE_ACCESSOR(Animal, name, const char*)
+	ACCESSOR(Animal, name, const char*)
 */
-#define DECLARE_ACCESSOR(CLASS, PROP, TYPE) \
-	DECLARE_GETTER(CLASS, PROP, TYPE); \
-	DECLARE_SETTER(CLASS, PROP, TYPE)
+#define ACCESSOR(CLASS, PROP, TYPE) \
+	GETTER(CLASS, PROP, TYPE); \
+	SETTER(CLASS, PROP, TYPE)
 
 
-#define DECLARE_ACCESSOR_VIRTUAL(CLASS, PROP, TYPE) \
-	DECLARE_GETTER_VIRTUAL(CLASS, PROP, TYPE); \
-	DECLARE_SETTER_VIRTUAL(CLASS, PROP, TYPE)
+#define ACCESSOR_VIRTUAL(CLASS, PROP, TYPE) \
+	GETTER_VIRTUAL(CLASS, PROP, TYPE); \
+	SETTER_VIRTUAL(CLASS, PROP, TYPE)
 
 
-#define DECLARE_ACCESSOR_OVERRIDE(CLASS, PROP, TYPE) \
-	DECLARE_GETTER_OVERRIDE(CLASS, PROP, TYPE); \
-	DECLARE_SETTER_OVERRIDE(CLASS, PROP, TYPE)
+#define ACCESSOR_OVERRIDE(CLASS, PROP, TYPE) \
+	GETTER_OVERRIDE(CLASS, PROP, TYPE); \
+	SETTER_OVERRIDE(CLASS, PROP, TYPE)
 
 
 /** Declares a non-virtual indexed getter method for a class.
 PROP should be a singular noun.
 
 Example:
-	DECLARE_ARRAY_GETTER(Animal, child, Object*)
+	ARRAY_GETTER(Animal, child, Object*)
 
 Declares the functions:
 	size_t Animal_child_count_get(const Object* self);
 	Object* Animal_child_get(const Object* self, size_t index);
 */
-#define DECLARE_ARRAY_GETTER(CLASS, PROP, TYPE) \
-	DECLARE_GETTER(CLASS, PROP##_count, size_t); \
-	DECLARE_METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index))
+#define ARRAY_GETTER(CLASS, PROP, TYPE) \
+	GETTER(CLASS, PROP##_count, size_t); \
+	METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index))
 
 
 /** Declares a non-virtual indexed getter/setter method pair for a class.
 PROP should be a singular noun.
 
 Example:
-	DECLARE_ARRAY_ACCESSOR(Animal, child, Object*)
+	ARRAY_ACCESSOR(Animal, child, Object*)
 
 Declares the functions:
 	size_t Animal_child_count_get(const Object* self);
 	Object* Animal_child_get(const Object* self, size_t index);
 	void Animal_child_set(const Object* self, size_t index, Object* element);
 */
-#define DECLARE_ARRAY_ACCESSOR(CLASS, PROP, TYPE) \
-	DECLARE_GETTER(CLASS, PROP##_count, size_t); \
-	DECLARE_METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index)); \
-	DECLARE_METHOD(CLASS, PROP##_set, void, (size_t index, TYPE PROP))
+#define ARRAY_ACCESSOR(CLASS, PROP, TYPE) \
+	GETTER(CLASS, PROP##_count, size_t); \
+	METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index)); \
+	METHOD(CLASS, PROP##_set, void, (size_t index, TYPE PROP))
 
 
 /**************************************

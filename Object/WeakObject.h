@@ -3,7 +3,7 @@
 #include "Object.h"
 
 
-DECLARE_CLASS(Weak, ());
+CLASS(Weak, ());
 
 
 typedef struct WeakObject WeakObject;

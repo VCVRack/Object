@@ -76,15 +76,15 @@ You can create your own object classes by including `Object/Object.h` and using 
 The `Animal` and `Dog` classes above can be declared by this `.h` header.
 ```c
 // You can add constructor/initialization arguments if needed
-DECLARE_CLASS(Animal, ());
-DECLARE_METHOD_VIRTUAL_CONST(Animal, speak, void, ());
-DECLARE_ACCESSORS_VIRTUAL(Animal, legs, int);
+CLASS(Animal, ());
+METHOD_VIRTUAL_CONST(Animal, speak, void, ());
+ACCESSOR_VIRTUAL(Animal, legs, int);
 
 /** A domesticated wolf. Specializes Animal. */
-DECLARE_CLASS(Dog, ());
-DECLARE_METHOD_VIRTUAL(Dog, bury, void, (Object* thing));
-DECLARE_ACCESSORS_VIRTUAL(Dog, name, const char*);
-DECLARE_METHOD_CONST_OVERRIDE(Dog, speak, void, ());
+CLASS(Dog, ());
+METHOD_VIRTUAL(Dog, bury, void, (Object* thing));
+ACCESSOR_VIRTUAL(Dog, name, const char*);
+METHOD_CONST_OVERRIDE(Dog, speak, void, ());
 ```
 
 See [examples/Animal.c](examples/Animal.c) for a possible implementation using `DEFINE_*` macros.
@@ -108,7 +108,7 @@ Without breaking the ABI, you cannot:
 
 ## Cross-language compatibility
 
-Each virtual method such as `DECLARE_METHOD_VIRTUAL(Foo, bar, int, (int n))` declares the following C functions.
+Each virtual method such as `METHOD_VIRTUAL(Foo, bar, int, (int n))` declares the following C functions.
 ```c
 int Foo_bar(Object* self, int n);
 int Foo_bar_mdirect(Object* self, int n);
