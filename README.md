@@ -77,7 +77,7 @@ The `Animal` and `Dog` classes above can be declared by this `.h` header.
 ```c
 // You can add constructor/initialization arguments if needed
 CLASS(Animal, ());
-METHOD_VIRTUAL_CONST(Animal, speak, void, ());
+METHOD_CONST_VIRTUAL(Animal, speak, void, ());
 ACCESSOR_VIRTUAL(Animal, legs, int);
 
 /** A domesticated wolf. Specializes Animal. */

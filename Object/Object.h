@@ -78,10 +78,17 @@ Similar to METHOD_VIRTUAL but doesn't define method getters/setters.
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES)
 
 
-/** Declares a non-virtual method for a class with a `const Object*` argument.
+#define METHOD_INTERFACE(CLASS, METHOD_, RETTYPE, ARGTYPES) \
+	typedef RETTYPE CLASS##_##METHOD_##_m(Object* self COMMA_EXPAND ARGTYPES); \
+	EXTERNC CLASS##_##METHOD_##_m* CLASS##_##METHOD_##_mget(const Object* self); \
+	EXTERNC void CLASS##_##METHOD_##_mset(Object* self, CLASS##_##METHOD_##_m* m); \
+	METHOD(CLASS, METHOD_, RETTYPE, ARGTYPES)
+
+
+/** Declares a method that overrides a different class's virtual method.
 */
-#define METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES)
+#define METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
+	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
 
 
 /** Declares a virtual method for a class.
@@ -109,29 +116,30 @@ Method setter:
 	void Animal_speak_mset(Object* self, Animal_speak_m m);
 */
 #define METHOD_VIRTUAL(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	typedef RETTYPE CLASS##_##METHOD##_m(Object* self COMMA_EXPAND ARGTYPES); \
-	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES); \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES); \
-	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self); \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m)
+	METHOD_INTERFACE(CLASS, METHOD, RETTYPE, ARGTYPES); \
+	METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES)
 
 
-/** Declares a method that overrides a different class's virtual method.
+/** Declares a non-virtual method for a class with a `const Object*` argument.
 */
-#define METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES)
+#define METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
+	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES)
 
 
-#define METHOD_VIRTUAL_CONST(CLASS, METHOD, RETTYPE, ARGTYPES) \
+#define METHOD_CONST_INTERFACE(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
-	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES); \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self); \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m)
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m); \
+	METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES)
 
 
 #define METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES)
+
+
+#define METHOD_CONST_VIRTUAL(CLASS, METHOD, RETTYPE, ARGTYPES) \
+	METHOD_CONST_INTERFACE(CLASS, METHOD, RETTYPE, ARGTYPES); \
+	METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES)
 
 
 /** Declares a non-virtual getter method for a class.
@@ -150,6 +158,16 @@ Declares the function:
 	METHOD_CONST(CLASS, PROP##_get, TYPE, ())
 
 
+#define GETTER_INTERFACE(CLASS, PROP, TYPE) \
+	METHOD_CONST_INTERFACE(CLASS, PROP##_get, TYPE, ())
+
+
+/** Declares a getter method that overrides a different class's virtual getter.
+*/
+#define GETTER_OVERRIDE(CLASS, PROP, TYPE) \
+	METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, ())
+
+
 /** Declares a virtual getter method for a class.
 Same arguments as GETTER().
 
@@ -163,13 +181,7 @@ Declares the functions:
 	void Animal_name_get_mset(Object* self, Animal_name_get_m m);
 */
 #define GETTER_VIRTUAL(CLASS, PROP, TYPE) \
-	METHOD_VIRTUAL_CONST(CLASS, PROP##_get, TYPE, ())
-
-
-/** Declares a getter method that overrides a different class's virtual getter.
-*/
-#define GETTER_OVERRIDE(CLASS, PROP, TYPE) \
-	METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, ())
+	METHOD_CONST_VIRTUAL(CLASS, PROP##_get, TYPE, ())
 
 
 /** Declares a non-virtual setter method for a class.
@@ -183,6 +195,14 @@ Declares the function:
 */
 #define SETTER(CLASS, PROP, TYPE) \
 	METHOD(CLASS, PROP##_set, void, (TYPE PROP))
+
+
+#define SETTER_INTERFACE(CLASS, PROP, TYPE) \
+	METHOD_INTERFACE(CLASS, PROP##_set, void, (TYPE PROP))
+
+
+#define SETTER_OVERRIDE(CLASS, PROP, TYPE) \
+	METHOD_OVERRIDE(CLASS, PROP##_set, void, (TYPE PROP))
 
 
 /** Declares a virtual setter method for a class.
@@ -201,12 +221,8 @@ Declares the functions:
 	METHOD_VIRTUAL(CLASS, PROP##_set, void, (TYPE PROP))
 
 
-#define SETTER_OVERRIDE(CLASS, PROP, TYPE) \
-	METHOD_OVERRIDE(CLASS, PROP##_set, void, (TYPE PROP))
-
-
 /** Declares a non-virtual getter/setter method pair for a class.
-Same arguments as GETTER().
+Same arguments as GETTER() and SETTER().
 
 Example:
 	ACCESSOR(Animal, name, const char*)
@@ -216,14 +232,19 @@ Example:
 	SETTER(CLASS, PROP, TYPE)
 
 
-#define ACCESSOR_VIRTUAL(CLASS, PROP, TYPE) \
-	GETTER_VIRTUAL(CLASS, PROP, TYPE); \
-	SETTER_VIRTUAL(CLASS, PROP, TYPE)
+#define ACCESSOR_INTERFACE(CLASS, PROP, TYPE) \
+	GETTER_INTERFACE(CLASS, PROP, TYPE); \
+	SETTER_INTERFACE(CLASS, PROP, TYPE)
 
 
 #define ACCESSOR_OVERRIDE(CLASS, PROP, TYPE) \
 	GETTER_OVERRIDE(CLASS, PROP, TYPE); \
 	SETTER_OVERRIDE(CLASS, PROP, TYPE)
+
+
+#define ACCESSOR_VIRTUAL(CLASS, PROP, TYPE) \
+	GETTER_VIRTUAL(CLASS, PROP, TYPE); \
+	SETTER_VIRTUAL(CLASS, PROP, TYPE)
 
 
 /** Declares a non-virtual indexed getter method for a class.
@@ -267,7 +288,7 @@ Definition macros for source implementation files
 	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
 		if (!self) \
 			return; \
-		if (Object_class_check(self, &CLASS##_class, NULL)) \
+		if (Object_class_check(self, &CLASS##_class, 0)) \
 			return; \
 		INIT \
 	} \
@@ -277,7 +298,7 @@ Definition macros for source implementation files
 		return self; \
 	} \
 	EXTERNC bool CLASS##_is(const Object* self) { \
-		return Object_class_check(self, &CLASS##_class, NULL); \
+		return Object_class_check(self, &CLASS##_class, 0); \
 	}
 
 
@@ -285,7 +306,7 @@ Definition macros for source implementation files
 	static void CLASS##_free(Object* self) { \
 		if (!self) \
 			return; \
-		CLASS* data = NULL; \
+		CLASS* data = 0; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return; \
 		CODE \
@@ -296,7 +317,7 @@ Definition macros for source implementation files
 	static void CLASS##_finalize(Object* self) { \
 		if (!self) \
 			return; \
-		CLASS* data = NULL; \
+		CLASS* data = 0; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return; \
 		CODE \
@@ -311,7 +332,7 @@ Definition macros for source implementation files
 	const Class CLASS##_class = { \
 		#CLASS, \
 		CLASS##_free, \
-		NULL, \
+		0, \
 		{} \
 	};
 
@@ -322,110 +343,97 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 */
 #define DEFINE_METHOD(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = NULL; \
+		CLASS* data = 0; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
 	}
 
 
-#define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
-	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = NULL; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return DEFAULT; \
-		CODE \
-	}
-
-
-#define DEFINE_METHOD_VIRTUAL(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
+#define DEFINE_METHOD_INTERFACE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(Object* self COMMA_EXPAND ARGTYPES); \
+	/* Method getter */ \
+	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
+		CLASS* data = 0; \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
+			return 0; \
+		if (!data) \
+			return 0; \
+		return data->METHOD; \
+	} \
+	/* Method setter */ \
+	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m) { \
+		CLASS* data = 0; \
+		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
+			return; \
+		if (!data) \
+			return; \
+		data->METHOD = m; \
+	} \
 	/* Virtual dispatch */ \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS##_##METHOD##_m* m = CLASS##_##METHOD##_mget(self); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
-	} \
-	/* Non-virtual call */ \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = NULL; \
+	}
+
+
+#define DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
+	DEFINE_METHOD(CLASS, METHOD##_mdirect, RETTYPE, DEFAULT, ARGTYPES, CODE)
+
+
+#define DEFINE_METHOD_VIRTUAL(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
+	DEFINE_METHOD_INTERFACE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES) \
+	DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE)
+
+
+// TODO Should `data` be const?
+#define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
+	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
+		CLASS* data = 0; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return DEFAULT; \
 		CODE \
-	} \
+	}
+
+
+#define DEFINE_METHOD_CONST_INTERFACE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES) \
+	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
 	/* Method getter */ \
 	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
-		CLASS* data = NULL; \
+		CLASS* data = 0; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return NULL; \
+			return 0; \
 		if (!data) \
-			return NULL; \
+			return 0; \
 		return data->METHOD; \
 	} \
 	/* Method setter */ \
 	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m) { \
-		CLASS* data = NULL; \
+		CLASS* data = 0; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return; \
 		if (!data) \
 			return; \
 		data->METHOD = m; \
-	}
-
-
-#define DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = NULL; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return DEFAULT; \
-		CODE \
-	}
-
-
-#define DEFINE_METHOD_VIRTUAL_CONST(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
-	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
+	} \
 	/* Virtual dispatch */ \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
 		CLASS##_##METHOD##_m* m = CLASS##_##METHOD##_mget(self); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
-	} \
-	/* Non-virtual call */ \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = NULL; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return DEFAULT; \
-		CODE \
-	} \
-	/* Method getter */ \
-	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
-		CLASS* data = NULL; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return NULL; \
-		if (!data) \
-			return NULL; \
-		return data->METHOD; \
-	} \
-	/* Method setter */ \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m) { \
-		CLASS* data = NULL; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return; \
-		if (!data) \
-			return; \
-		data->METHOD = m; \
 	}
 
 
 #define DEFINE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE) \
-	EXTERNC RETTYPE CLASS##_##METHOD##_mdirect(const Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = NULL; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return DEFAULT; \
-		CODE \
-	}
+	DEFINE_METHOD_CONST(CLASS, METHOD##_mdirect, RETTYPE, DEFAULT, ARGTYPES, CODE)
+
+
+#define DEFINE_METHOD_CONST_VIRTUAL(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES, CODE) \
+	DEFINE_METHOD_CONST_INTERFACE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES) \
+	DEFINE_METHOD_CONST_OVERRIDE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, CODE)
 
 
 #define DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, CODE) \
@@ -440,8 +448,16 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	})
 
 
+#define DEFINE_GETTER_INTERFACE(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_METHOD_CONST_INTERFACE(CLASS, PROP##_get, TYPE, DEFAULT, ())
+
+
+#define DEFINE_GETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, CODE) \
+	DEFINE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, DEFAULT, (), CODE)
+
+
 #define DEFINE_GETTER_VIRTUAL(CLASS, PROP, TYPE, DEFAULT, CODE) \
-	DEFINE_METHOD_VIRTUAL_CONST(CLASS, PROP##_get, TYPE, DEFAULT, (), (), CODE)
+	DEFINE_METHOD_CONST_VIRTUAL(CLASS, PROP##_get, TYPE, DEFAULT, (), (), CODE)
 
 
 /** Defines a getter method that returns the property from the data struct.
@@ -454,10 +470,6 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	})
 
 
-#define DEFINE_GETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, CODE) \
-	DEFINE_METHOD_CONST_OVERRIDE(CLASS, PROP##_get, TYPE, DEFAULT, (), CODE)
-
-
 #define DEFINE_SETTER(CLASS, PROP, TYPE, CODE) \
 	DEFINE_METHOD(CLASS, PROP##_set, void, VOID, (TYPE PROP), CODE)
 
@@ -468,6 +480,14 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 			return; \
 		data->PROP = PROP; \
 	})
+
+
+#define DEFINE_SETTER_INTERFACE(CLASS, PROP, TYPE) \
+	DEFINE_METHOD_INTERFACE(CLASS, PROP##_set, void, VOID, (TYPE PROP), (PROP))
+
+
+#define DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, CODE) \
+	DEFINE_METHOD_OVERRIDE(CLASS, PROP##_set, void, VOID, (TYPE PROP), CODE)
 
 
 #define DEFINE_SETTER_VIRTUAL(CLASS, PROP, TYPE, CODE) \
@@ -484,10 +504,6 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	})
 
 
-#define DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, CODE) \
-	DEFINE_METHOD_OVERRIDE(CLASS, PROP##_set, void, VOID, (TYPE PROP), CODE)
-
-
 #define DEFINE_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
 	DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, GETTER) \
 	DEFINE_SETTER(CLASS, PROP, TYPE, SETTER)
@@ -498,6 +514,16 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE)
 
 
+#define DEFINE_ACCESSOR_INTERFACE(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_GETTER_INTERFACE(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_SETTER_INTERFACE(CLASS, PROP, TYPE)
+
+
+#define DEFINE_ACCESSOR_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
+	DEFINE_GETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, GETTER) \
+	DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, SETTER)
+
+
 #define DEFINE_ACCESSOR_VIRTUAL(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
 	DEFINE_GETTER_VIRTUAL(CLASS, PROP, TYPE, DEFAULT, GETTER) \
 	DEFINE_SETTER_VIRTUAL(CLASS, PROP, TYPE, SETTER)
@@ -506,11 +532,6 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 #define DEFINE_ACCESSOR_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_GETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_SETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE)
-
-
-#define DEFINE_ACCESSOR_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, GETTER, SETTER) \
-	DEFINE_GETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, GETTER) \
-	DEFINE_SETTER_OVERRIDE(CLASS, PROP, TYPE, SETTER)
 
 
 #define DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNT, GETTER) \

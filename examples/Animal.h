@@ -13,7 +13,7 @@ However it's a good idea to document the hierarchy for humans to read.
 
 /** An organic beast, no matter how small. */
 CLASS(Animal, ());
-METHOD_VIRTUAL_CONST(Animal, speak, void, ());
+METHOD_CONST_VIRTUAL(Animal, speak, void, ());
 ACCESSOR_VIRTUAL(Animal, legs, int);
 METHOD_CONST(Animal, pet, void, ());
 

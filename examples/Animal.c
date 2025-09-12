@@ -38,7 +38,7 @@ DEFINE_CLASS(Animal, (), (), {
 })
 
 
-DEFINE_METHOD_VIRTUAL_CONST(Animal, speak, void, VOID, (), (), {
+DEFINE_METHOD_CONST_VIRTUAL(Animal, speak, void, VOID, (), (), {
 	printf("I'm an animal with %d legs.\n", GET(self, Animal, legs));
 })
 
