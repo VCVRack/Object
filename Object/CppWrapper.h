@@ -35,14 +35,21 @@ Or you can further subclass an ObjectWrapper subclass and override its virtual m
 When instantiated, it creates and owns its Object until deleted.
 When the Object's methods are called (such as `Animal_speak()`), your overridden C++ methods are called.
 
-Subclasses can define virtual accessors methods (getters/setters) with names like `getFoo()` or `foo_get()`.
+See Animal.hpp for an example C++ class that wraps an Animal object.
 */
 struct ObjectWrapper {
+	/** Owned if `original` is true. */
 	Object* self;
 	bool original;
 
+	/** Constructs an ObjectWrapper with a new Object.
+	Each ObjectWrapper subclass should implement its own default constructor that creates a specialized Object.
+	*/
 	ObjectWrapper() : ObjectWrapper(Object_create(), true) {}
 
+	/** Constructs an ObjectWrapper with an existing Object.
+	If `original` is true, use BIND_* macros to override the Object's virtual methods with C++ virtual methods.
+	*/
 	ObjectWrapper(Object* self, bool original = false) : self(self), original(original) {
 		// TODO Assert that existing wrapper does not already exist
 		CppWrapper_specialize(self);
@@ -52,6 +59,7 @@ struct ObjectWrapper {
 		});
 	}
 
+	/** Objects can't be copied by default, so disable copying ObjectWrapper. */
 	ObjectWrapper(const ObjectWrapper&) = delete;
 	ObjectWrapper& operator=(const ObjectWrapper&) = delete;
 
@@ -63,10 +71,11 @@ struct ObjectWrapper {
 			Object_release(self);
 	}
 
-	Object* self_get() {
-		return self;
-	}
+	/** Gets the Object, preserving constness. */
+	Object* self_get() { return self; }
+	const Object* self_get() const { return self; }
 
+	/** Gets an ObjectWrapper's Object, gracefully handling NULL. */
 	static Object* self_get(ObjectWrapper* wrapper) {
 		if (!wrapper)
 			return NULL;
@@ -107,6 +116,35 @@ T* CppWrapper_castOrCreate(Object* self) {
 }
 
 
+/** Overrides an Object's method with a lambda/thunk that calls your ObjectWrapper subclass' method.
+Provides a `that` variable that points to your ObjectWrapper.
+
+Example:
+	BIND_METHOD(Animal, Animal, speak, (), {
+		that->speak();
+	});
+*/
+#define BIND_METHOD(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
+	CLASS##_##METHOD##_mset(self, [](Object* self COMMA_EXPAND ARGTYPES) { \
+		CPPCLASS* that = CppWrapper_cast<CPPCLASS>(self); \
+		CODE \
+	})
+
+#define BIND_METHOD_CONST(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
+	CLASS##_##METHOD##_mset(self, [](const Object* self COMMA_EXPAND ARGTYPES) { \
+		const CPPCLASS* that = CppWrapper_cast<CPPCLASS>(self); \
+		CODE \
+	})
+
+#define BIND_GETTER(CPPCLASS, CLASS, PROP, CODE) \
+	BIND_METHOD_CONST(CPPCLASS, CLASS, PROP##_get, (), CODE)
+
+#define BIND_SETTER(CPPCLASS, CLASS, PROP, TYPE, CODE) \
+	BIND_METHOD(CPPCLASS, CLASS, PROP##_set, (TYPE PROP), CODE)
+
+#define BIND_ACCESSOR(CPPCLASS, CLASS, PROP, TYPE, GETTER, SETTER) \
+	BIND_GETTER(CPPCLASS, CLASS, PROP, GETTER); \
+	BIND_SETTER(CPPCLASS, CLASS, PROP, TYPE, SETTER)
 
 
 /** Reference counter for an ObjectWrapper subclass.

@@ -78,6 +78,8 @@ Similar to METHOD_VIRTUAL but doesn't define method getters/setters.
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES)
 
 
+/** Interfaces are virtual methods with no implementation.
+*/
 #define METHOD_INTERFACE(CLASS, METHOD_, RETTYPE, ARGTYPES) \
 	typedef RETTYPE CLASS##_##METHOD_##_m(Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC CLASS##_##METHOD_##_m* CLASS##_##METHOD_##_mget(const Object* self); \
