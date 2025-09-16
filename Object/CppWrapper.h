@@ -125,14 +125,16 @@ Example:
 	});
 */
 #define BIND_METHOD(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
-	CLASS##_##METHOD##_mset(self, [](Object* self COMMA_EXPAND ARGTYPES) { \
+	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) +[](Object* self COMMA_EXPAND ARGTYPES) { \
 		CPPCLASS* that = CppWrapper_cast<CPPCLASS>(self); \
+		assert(that); \
 		CODE \
 	})
 
 #define BIND_METHOD_CONST(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
-	CLASS##_##METHOD##_mset(self, [](const Object* self COMMA_EXPAND ARGTYPES) { \
+	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) +[](const Object* self COMMA_EXPAND ARGTYPES) { \
 		const CPPCLASS* that = CppWrapper_cast<CPPCLASS>(self); \
+		assert(that); \
 		CODE \
 	})
 

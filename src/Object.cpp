@@ -121,7 +121,8 @@ void Object_method_push(Object* self, void* dispatcher, void* method) {
 	// If method already exists, replace and set supermethod
 	if (!result.second) {
 		void* supermethod = result.first->second;
-		self->supermethods[method] = supermethod;
+		// Don't replace method's supermethod if already set
+		self->supermethods.insert({method, supermethod});
 		result.first->second = method;
 	}
 }

@@ -348,7 +348,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 #define DEFINE_METHOD_INTERFACE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS##_##METHOD##_m* m = Object_method_get(self, &CLASS##_##METHOD); \
+		CLASS##_##METHOD##_m* m = (CLASS##_##METHOD##_m*) Object_method_get(self, (void*) &CLASS##_##METHOD); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
@@ -377,7 +377,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 #define DEFINE_METHOD_CONST_INTERFACE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS##_##METHOD##_m* m = Object_method_get(self, &CLASS##_##METHOD); \
+		CLASS##_##METHOD##_m* m = (CLASS##_##METHOD##_m*) Object_method_get(self, (void*) &CLASS##_##METHOD); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
@@ -523,7 +523,7 @@ Call macros
 
 
 #define PUSH_METHOD(SELF, SUPERCLASS, CLASS, METHOD) \
-	Object_method_push(SELF, &SUPERCLASS##_##METHOD, &CLASS##_##METHOD##_mdirect)
+	Object_method_push(SELF, (void*) &SUPERCLASS##_##METHOD, (void*) &CLASS##_##METHOD##_mdirect)
 
 
 #define PUSH_GETTER(SELF, SUPERCLASS, CLASS, PROP) \
@@ -548,7 +548,7 @@ Call macros
 
 
 #define CALL_SUPER(SELF, SUPERCLASS, CLASS, METHOD, ...) \
-	((SUPERCLASS##_##METHOD##_m*) Object_supermethod_get(SELF, &CLASS##_##METHOD##_mdirect))(SELF __VA_OPT__(,) __VA_ARGS__)
+	((SUPERCLASS##_##METHOD##_m*) Object_supermethod_get(SELF, (void*) &CLASS##_##METHOD##_mdirect))(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
 #define GET(SELF, CLASS, PROP, ...) \
