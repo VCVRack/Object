@@ -19,10 +19,14 @@ static_assert(sizeof(Class) == 256, "Object Class size must be 256 bytes");
 
 
 struct Object {
-	// Quick access to data per class
-	std::unordered_map<const Class*, void*> datas;
 	// Classes ordered by specialization
 	std::vector<const Class*> classes;
+	// Quick access to data per class
+	std::unordered_map<const Class*, void*> datas;
+	// Method overloads: dispatcher function pointer -> method pointer
+	std::unordered_map<void*, void*> methods;
+	// Super methods: method pointer -> method pointer that was overridden by it
+	std::unordered_map<void*, void*> supermethods;
 
 	// Number of shared references
 	std::atomic<size_t> refs;
@@ -87,12 +91,11 @@ size_t Object_refs_get(const Object* self) {
 void Object_class_push(Object* self, const Class* cls, void* data) {
 	if (!self || !cls)
 		return;
-	// Return silently if already inherited
-	auto it = self->datas.find(cls);
-	if (it != self->datas.end())
+	// Set class data
+	auto result = self->datas.insert({cls, data});
+	// Return if class already existed
+	if (!result.second)
 		return;
-	// Push class and data
-	self->datas[cls] = data;
 	self->classes.push_back(cls);
 }
 
@@ -107,6 +110,40 @@ bool Object_class_check(const Object* self, const Class* cls, void** dataOut) {
 	if (dataOut)
 		*dataOut = it->second;
 	return true;
+}
+
+
+void Object_method_push(Object* self, void* dispatcher, void* method) {
+	if (!self)
+		return;
+	// Try to set method
+	auto result = self->methods.insert({dispatcher, method});
+	// If method already exists, replace and set supermethod
+	if (!result.second) {
+		void* supermethod = result.first->second;
+		self->supermethods[method] = supermethod;
+		result.first->second = method;
+	}
+}
+
+
+void* Object_method_get(const Object* self, void* dispatcher) {
+	if (!self)
+		return NULL;
+	auto it = self->methods.find(dispatcher);
+	if (it == self->methods.end())
+		return NULL;
+	return it->second;
+}
+
+
+void* Object_supermethod_get(const Object* self, void* method) {
+	if (!self)
+		return NULL;
+	auto it = self->supermethods.find(method);
+	if (it == self->supermethods.end())
+		return NULL;
+	return it->second;
 }
 
 

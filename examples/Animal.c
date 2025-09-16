@@ -20,18 +20,15 @@ char* strdup2(const char* s) {
 
 struct Animal {
 	int legs;
-
-	STORE_METHOD(Animal, speak);
-	STORE_ACCESSOR(Animal, legs);
 };
 
 
 DEFINE_CLASS(Animal, (), (), {
-	Animal* data = (Animal*) calloc(1, sizeof(Animal));
+	Animal* data = (Animal*) malloc(sizeof(Animal));
 	data->legs = 0;
 	PUSH_CLASS(self, Animal, data);
-	SET_METHOD(self, Animal, Animal, speak);
-	SET_ACCESSOR(self, Animal, Animal, legs);
+	PUSH_METHOD(self, Animal, Animal, speak);
+	PUSH_ACCESSOR(self, Animal, Animal, legs);
 }, {
 	// printf("bye Animal\n");
 	free(data);
@@ -55,19 +52,17 @@ DEFINE_METHOD_CONST(Animal, pet, void, VOID, (), {
 
 struct Dog {
 	char* name;
-
-	STORE_ACCESSOR(Dog, name);
 };
 
 
 DEFINE_CLASS(Dog, (), (), {
 	SPECIALIZE(self, Animal);
-	Dog* data = (Dog*) calloc(1, sizeof(Dog));
+	Dog* data = (Dog*) malloc(sizeof(Dog));
 	data->name = NULL;
 	PUSH_CLASS(self, Dog, data);
-	SET_METHOD(self, Dog, Animal, speak);
-	SET_ACCESSOR(self, Dog, Animal, legs);
-	SET_ACCESSOR(self, Dog, Dog, name);
+	PUSH_METHOD(self, Animal, Dog, speak);
+	PUSH_ACCESSOR(self, Animal, Dog, legs);
+	PUSH_ACCESSOR(self, Dog, Dog, name);
 	SET(self, Animal, legs, 4);
 }, {
 	// printf("bye Dog\n");
@@ -81,13 +76,13 @@ DEFINE_METHOD_CONST_OVERRIDE(Dog, speak, void, VOID, (), {
 })
 
 
-// This example override is pointless overhead, but it demonstrates how to call the superclass' method from an overridden method.
+// This example is a bit pointless, but it demonstrates how to call the superclass' method from an overridden method.
 DEFINE_ACCESSOR_OVERRIDE(Dog, legs, int, -1, {
-	return GET_DIRECT(self, Animal, legs);
+	return GET_SUPER(self, Animal, Dog, legs);
 }, {
 	if (legs > 4)
 		legs = 4;
-	SET_DIRECT(self, Animal, legs, legs);
+	SET_SUPER(self, Animal, Dog, legs, legs);
 })
 
 

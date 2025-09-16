@@ -59,15 +59,11 @@ Constructor:
 
 Specialization function:
 	void Animal_specialize(Object* self, const char* name, int legs);
-
-Type checking function:
-	bool Animal_is(const Object* self);
 */
 #define CLASS(CLASS, INITARGS) \
 	extern const Class CLASS##_class; \
 	EXTERNC Object* CLASS##_create(EXPAND INITARGS); \
-	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS); \
-	EXTERNC bool CLASS##_is(const Object* self)
+	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS)
 
 
 /** Declares a non-virtual method for a class.
@@ -298,9 +294,6 @@ Definition macros for source implementation files
 		Object* self = Object_create(); \
 		CLASS##_specialize(self COMMA_EXPAND INITARGNAMES); \
 		return self; \
-	} \
-	EXTERNC bool CLASS##_is(const Object* self) { \
-		return Object_class_check(self, &CLASS##_class, 0); \
 	}
 
 
@@ -354,27 +347,8 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_METHOD_INTERFACE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(Object* self COMMA_EXPAND ARGTYPES); \
-	/* Method getter */ \
-	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
-		CLASS* data = 0; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return 0; \
-		if (!data) \
-			return 0; \
-		return data->METHOD; \
-	} \
-	/* Method setter */ \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m) { \
-		CLASS* data = 0; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return; \
-		if (!data) \
-			return; \
-		data->METHOD = m; \
-	} \
-	/* Virtual dispatch */ \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS##_##METHOD##_m* m = CLASS##_##METHOD##_mget(self); \
+		CLASS##_##METHOD##_m* m = Object_method_get(self, &CLASS##_##METHOD); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
@@ -402,27 +376,8 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_METHOD_CONST_INTERFACE(CLASS, METHOD, RETTYPE, DEFAULT, ARGTYPES, ARGNAMES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
-	/* Method getter */ \
-	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self) { \
-		CLASS* data = 0; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return 0; \
-		if (!data) \
-			return 0; \
-		return data->METHOD; \
-	} \
-	/* Method setter */ \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m) { \
-		CLASS* data = 0; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return; \
-		if (!data) \
-			return; \
-		data->METHOD = m; \
-	} \
-	/* Virtual dispatch */ \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS##_##METHOD##_m* m = CLASS##_##METHOD##_mget(self); \
+		CLASS##_##METHOD##_m* m = Object_method_get(self, &CLASS##_##METHOD); \
 		if (!m) \
 			return DEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
@@ -546,23 +501,6 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_METHOD(CLASS, PROP##_set, void, VOID, (size_t index, TYPE PROP), SETTER)
 
 
-#define STORE_METHOD(CLASS, METHOD) \
-	CLASS##_##METHOD##_m* METHOD
-
-
-#define STORE_GETTER(CLASS, PROP) \
-	STORE_METHOD(CLASS, PROP##_get)
-
-
-#define STORE_SETTER(CLASS, PROP) \
-	STORE_METHOD(CLASS, PROP##_set)
-
-
-#define STORE_ACCESSOR(CLASS, PROP) \
-	STORE_GETTER(CLASS, PROP); \
-	STORE_SETTER(CLASS, PROP)
-
-
 /**************************************
 Call macros
 */
@@ -577,28 +515,28 @@ Call macros
 
 
 #define IS(SELF, CLASS) \
-	CLASS##_is(SELF)
-
-
-#define SET_METHOD(SELF, CLASS, SUPERCLASS, METHOD) \
-	SUPERCLASS##_##METHOD##_mset(SELF, CLASS##_##METHOD##_mdirect)
-
-
-#define SET_GETTER(SELF, CLASS, SUPERCLASS, PROP) \
-	SET_METHOD(SELF, CLASS, SUPERCLASS, PROP##_get); \
-
-
-#define SET_SETTER(SELF, CLASS, SUPERCLASS, PROP) \
-	SET_METHOD(SELF, CLASS, SUPERCLASS, PROP##_set)
-
-
-#define SET_ACCESSOR(SELF, CLASS, SUPERCLASS, PROP) \
-	SET_GETTER(SELF, CLASS, SUPERCLASS, PROP); \
-	SET_SETTER(SELF, CLASS, SUPERCLASS, PROP)
+	Object_class_check(SELF, &CLASS##_class, 0)
 
 
 #define PUSH_CLASS(SELF, CLASS, DATA) \
 	Object_class_push(SELF, &CLASS##_class, DATA)
+
+
+#define PUSH_METHOD(SELF, SUPERCLASS, CLASS, METHOD) \
+	Object_method_push(SELF, &SUPERCLASS##_##METHOD, &CLASS##_##METHOD##_mdirect)
+
+
+#define PUSH_GETTER(SELF, SUPERCLASS, CLASS, PROP) \
+	PUSH_METHOD(SELF, SUPERCLASS, CLASS, PROP##_get); \
+
+
+#define PUSH_SETTER(SELF, SUPERCLASS, CLASS, PROP) \
+	PUSH_METHOD(SELF, SUPERCLASS, CLASS, PROP##_set)
+
+
+#define PUSH_ACCESSOR(SELF, SUPERCLASS, CLASS, PROP) \
+	PUSH_GETTER(SELF, SUPERCLASS, CLASS, PROP); \
+	PUSH_SETTER(SELF, SUPERCLASS, CLASS, PROP)
 
 
 #define CALL(SELF, CLASS, METHOD, ...) \
@@ -609,6 +547,10 @@ Call macros
 	CLASS##_##METHOD##_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
+#define CALL_SUPER(SELF, SUPERCLASS, CLASS, METHOD, ...) \
+	((SUPERCLASS##_##METHOD##_m*) Object_supermethod_get(SELF, &CLASS##_##METHOD##_mdirect))(SELF __VA_OPT__(,) __VA_ARGS__)
+
+
 #define GET(SELF, CLASS, PROP, ...) \
 	CLASS##_##PROP##_get(SELF __VA_OPT__(,) __VA_ARGS__)
 
@@ -617,12 +559,20 @@ Call macros
 	CLASS##_##PROP##_get_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
+#define GET_SUPER(SELF, SUPERCLASS, CLASS, PROP, ...) \
+	CALL_SUPER(SELF, SUPERCLASS, CLASS, PROP##_get __VA_OPT__(,) __VA_ARGS__)
+
+
 #define SET(SELF, CLASS, PROP, ...) \
 	CLASS##_##PROP##_set(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
 #define SET_DIRECT(SELF, CLASS, PROP, ...) \
 	CLASS##_##PROP##_set_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
+
+
+#define SET_SUPER(SELF, SUPERCLASS, CLASS, PROP, ...) \
+	CALL_SUPER(SELF, SUPERCLASS, CLASS, PROP##_set __VA_OPT__(,) __VA_ARGS__)
 
 
 /**************************************
@@ -701,6 +651,13 @@ If so, and dataOut is non-NULL, sets the data pointer.
 Returns false if self is NULL.
 */
 bool Object_class_check(const Object* self, const Class* cls, void** dataOut);
+
+
+/** Overrides a method dispatched by the `dispatcher` function pointer.
+*/
+void Object_method_push(Object* self, void* dispatcher, void* method);
+void* Object_method_get(const Object* self, void* dispatcher);
+void* Object_supermethod_get(const Object* self, void* method);
 
 
 /** Prints all types of an object in order of specialization.
