@@ -18,6 +18,7 @@ ACCESSOR(CppWrapper, destructor, CppWrapper_destructor_f*);
 #ifdef __cplusplus
 
 #include <assert.h>
+#include <vector>
 #include <type_traits>
 #include <iterator>
 
@@ -534,9 +535,24 @@ struct ArrayGetterProxy : Proxy<Base> {
 	using size_type = size_t;
 	using difference_type = std::ptrdiff_t;
 
-	value_type operator[](size_t index) const { return (value_type) Base::get(index); }
 	size_t size() const { return Base::count_get(); }
 	bool empty() const { return size() == 0; }
+	value_type operator[](size_t index) const { return (value_type) Base::get(index); }
+	value_type front() const { return (*this)[0]; }
+	value_type back() const { return (*this)[size() - 1]; }
+
+	/** Implicit cast to vector */
+	operator std::vector<value_type>() const {
+		size_t count = size();
+		std::vector<value_type> v;
+		v.resize(count);
+		for (size_t i = 0; i < count; i++) {
+			v[i] = (*this)[i];
+		}
+		return v;
+	}
+
+	// Iterators
 
 	using iterator = ArrayGetterProxyIterator<const ArrayGetterProxy>;
 	using const_iterator = iterator;
@@ -642,6 +658,33 @@ struct ArrayAccessorProxy : Proxy<Base> {
 	using value_type = ElementAccessor;
 
 	ElementAccessor operator[](size_t index) { return ElementAccessor(*this, index); }
+
+	// Resize methods. Only valid if Base::count_set() exists.
+
+	void resize(size_t count) { Base::count_set(count); }
+	void clear() { resize(0); }
+
+	/** Assignment from vector */
+	ArrayAccessorProxy& operator=(const std::vector<T>& v) {
+		size_t count = v.size();
+		resize(count);
+		for (size_t i = 0; i < count; i++) {
+			(*this)[i] = v[i];
+		}
+		return *this;
+	}
+
+	void push_back(const T& t) {
+		size_t count = size();
+		resize(count + 1);
+		(*this)[count] = t;
+	}
+
+	void pop_back() {
+		resize(size() - 1);
+	}
+
+	// Iterators
 
 	using iterator = ArrayAccessorProxyIterator<ArrayAccessorProxy>;
 	using const_iterator = ArrayAccessorProxyIterator<const ArrayAccessorProxy>;
