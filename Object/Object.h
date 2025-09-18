@@ -78,8 +78,6 @@ Similar to METHOD_VIRTUAL but doesn't define method getters/setters.
 */
 #define METHOD_INTERFACE(CLASS, METHOD_, RETTYPE, ARGTYPES) \
 	typedef RETTYPE CLASS##_##METHOD_##_m(Object* self COMMA_EXPAND ARGTYPES); \
-	EXTERNC CLASS##_##METHOD_##_m* CLASS##_##METHOD_##_mget(const Object* self); \
-	EXTERNC void CLASS##_##METHOD_##_mset(Object* self, CLASS##_##METHOD_##_m* m); \
 	METHOD(CLASS, METHOD_, RETTYPE, ARGTYPES)
 
 
@@ -126,8 +124,6 @@ Method setter:
 
 #define METHOD_CONST_INTERFACE(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
-	EXTERNC CLASS##_##METHOD##_m* CLASS##_##METHOD##_mget(const Object* self); \
-	EXTERNC void CLASS##_##METHOD##_mset(Object* self, CLASS##_##METHOD##_m* m); \
 	METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES)
 
 
