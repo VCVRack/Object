@@ -31,6 +31,7 @@ Once defined, there are two ways to use an ObjectWrapper subclass.
 
 You can proxy an existing Object by calling the constructor `ObjectWrapper(object)`.
 No reference is obtained, and the proxy is deleted when the Object is freed.
+You can obtain a reference with the Ref class.
 
 Or you can further subclass an ObjectWrapper subclass and override its virtual methods.
 When instantiated, it creates and owns its Object until deleted.
@@ -40,8 +41,8 @@ See Animal.hpp for an example C++ class that wraps an Animal object.
 */
 struct ObjectWrapper {
 	/** Owned if `original` is true. */
-	Object* self;
-	bool original;
+	Object* const self;
+	const bool original;
 
 	/** Constructs an ObjectWrapper with a new Object.
 	Each ObjectWrapper subclass should implement its own default constructor that creates a specialized Object.
@@ -151,7 +152,9 @@ Example:
 
 
 /** Reference counter for an ObjectWrapper subclass.
-Similar to std::shared_ptr.
+
+If T is newly constructed, use
+	Ref<T> ref = Ref<T>::adopt(new ObjectWrapper);
 */
 template <class T>
 struct Ref {
@@ -162,8 +165,7 @@ struct Ref {
 	Ref() {}
 
 	// ObjectWrapper constructor
-	Ref(T* wrapper) {
-		this->wrapper = wrapper;
+	Ref(T* wrapper) : wrapper(wrapper) {
 		obtain();
 	}
 
@@ -225,6 +227,12 @@ struct Ref {
 
 	bool operator==(const Ref& other) {
 		return wrapper == other.wrapper;
+	}
+
+	static Ref adopt(T *wrapper) {
+		Ref ref;
+		ref.wrapper = wrapper;
+		return ref;
 	}
 
 private:
