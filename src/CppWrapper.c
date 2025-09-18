@@ -1,5 +1,6 @@
 #include <Object/CppWrapper.h>
 #include <stdlib.h> // for calloc and free
+#include <assert.h>
 
 
 struct CppWrapper {
@@ -19,5 +20,13 @@ DEFINE_CLASS(CppWrapper, (), (), {
 })
 
 
-DEFINE_ACCESSOR_AUTOMATIC(CppWrapper, wrapper, ObjectWrapper*, NULL)
+DEFINE_ACCESSOR(CppWrapper, wrapper, ObjectWrapper*, NULL, {
+	return data->wrapper;
+}, {
+	// Must not overwrite existing wrapper
+	assert(!(wrapper && data->wrapper));
+	data->wrapper = wrapper;
+})
+
+
 DEFINE_ACCESSOR_AUTOMATIC(CppWrapper, destructor, CppWrapper_destructor_f*, NULL)

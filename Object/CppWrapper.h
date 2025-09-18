@@ -56,9 +56,7 @@ struct ObjectWrapper {
 		// TODO Assert that existing wrapper does not already exist
 		CppWrapper_specialize(self);
 		CppWrapper_wrapper_set(self, this);
-		CppWrapper_destructor_set(self, [](ObjectWrapper* wrapper) {
-			delete wrapper;
-		});
+		CppWrapper_destructor_set(self, destructor);
 	}
 
 	/** Objects can't be copied by default, so disable copying ObjectWrapper. */
@@ -68,6 +66,7 @@ struct ObjectWrapper {
 	virtual ~ObjectWrapper() {
 		// Remove CppWrapper -> ObjectWrapper association
 		CppWrapper_wrapper_set(self, NULL);
+		CppWrapper_destructor_set(self, NULL);
 		// Proxy wrappers don't own a reference
 		if (original)
 			Object_release(self);
@@ -87,6 +86,10 @@ struct ObjectWrapper {
 		if (!wrapper)
 			return NULL;
 		return wrapper->self;
+	}
+
+	static void destructor(ObjectWrapper* wrapper) {
+		delete wrapper;
 	}
 };
 
