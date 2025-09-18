@@ -35,7 +35,7 @@ DEFINE_CLASS(Animal, (), (), {
 })
 
 
-DEFINE_METHOD_CONST_VIRTUAL(Animal, speak, void, VOID, (), (), {
+DEFINE_METHOD_CONST_VIRTUAL(Animal, speak, void, (), VOID, (), {
 	printf("I'm an animal with %d legs.\n", GET(self, Animal, legs));
 })
 
@@ -43,7 +43,7 @@ DEFINE_METHOD_CONST_VIRTUAL(Animal, speak, void, VOID, (), (), {
 DEFINE_ACCESSOR_VIRTUAL_AUTOMATIC(Animal, legs, int, -1)
 
 
-DEFINE_METHOD_CONST(Animal, pet, void, VOID, (), {
+DEFINE_METHOD_CONST(Animal, pet, void, (), VOID, {
 	printf("You pet the animal.\n");
 })
 
@@ -71,7 +71,7 @@ DEFINE_CLASS(Dog, (), (), {
 })
 
 
-DEFINE_METHOD_CONST_OVERRIDE(Dog, speak, void, VOID, (), {
+DEFINE_METHOD_CONST_OVERRIDE(Dog, speak, void, (), VOID, {
 	printf("Woof, I'm a dog named %s with %d legs.\n", GET(self, Dog, name), GET(self, Animal, legs));
 })
 

@@ -113,8 +113,6 @@ Each virtual method such as `METHOD_VIRTUAL(Foo, bar, int, (int n))` declares th
 int Foo_bar(Object* self, int n);
 int Foo_bar_mdirect(Object* self, int n);
 typedef int (*Foo_bar_m)(Object* self, int n);
-Foo_bar_m Foo_bar_mget(const Object* self);
-void Foo_bar_mset(Object* self, Foo_bar_m m);
 ```
 
 Any language/environment with a C FFI interface can call these functions to interact with your library, including C++, Go, Rust, Zig, Java, C#, Python, PHP, Node, Ruby, Julia, Lua, etc.
