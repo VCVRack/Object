@@ -273,6 +273,24 @@ Declares the functions:
 	METHOD(CLASS, PROP##_set, void, (size_t index, TYPE PROP))
 
 
+/** Declares a non-virtual indexed resizable getter/setter method pair for a class.
+PROP should be a singular noun.
+
+Example:
+	VECTOR_ACCESSOR(Animal, child, Object*)
+
+Declares the functions:
+	size_t Animal_child_count_get(const Object* self);
+	void Animal_child_count_set(Object* self, size_t index);
+	Object* Animal_child_get(const Object* self, size_t index);
+	void Animal_child_set(Object* self, size_t index, Object* element);
+
+*/
+#define VECTOR_ACCESSOR(CLASS, PROP, TYPE) \
+	ARRAY_ACCESSOR(CLASS, PROP, TYPE); \
+	SETTER(CLASS, PROP##_count, size_t)
+
+
 /**************************************
 Definition macros for source implementation files
 */
@@ -495,6 +513,11 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 #define DEFINE_ARRAY_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNT, GETTER, SETTER) \
 	DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNT, GETTER) \
 	DEFINE_METHOD(CLASS, PROP##_set, void, (size_t index, TYPE PROP), VOID, SETTER)
+
+
+#define DEFINE_VECTOR_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
+	DEFINE_ARRAY_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER, SETTER) \
+	DEFINE_SETTER(CLASS, PROP##_count, size_t, COUNTSETTER)
 
 
 /**************************************
