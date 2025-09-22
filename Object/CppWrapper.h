@@ -646,7 +646,6 @@ struct ArrayAccessorProxy : Proxy<Base> {
 	size_t size() const { return Base::count_get(); }
 	bool empty() const { return size() == 0; }
 
-	// TODO Handle const ArrayAccessorProxy
 	struct ElementAccessor {
 		ArrayAccessorProxy& proxy;
 		size_t index;
@@ -669,6 +668,7 @@ struct ArrayAccessorProxy : Proxy<Base> {
 	using value_type = ElementAccessor;
 
 	ElementAccessor operator[](size_t index) { return ElementAccessor(*this, index); }
+	T operator[](size_t index) const { return Base::get(index); }
 
 	// Resize methods. Only valid if Base::count_set() exists.
 
