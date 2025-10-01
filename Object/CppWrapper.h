@@ -608,13 +608,13 @@ struct ArrayGetterProxy : Proxy<Base> {
 PROPS should be plural since C++ arrays are typically plural.
 
 Example:
-	ARRAY_GETTER_PROXY(AnimalWrapper, Animal, child, children, Object*);
+	ARRAY_GETTER_PROXY(AnimalWrapper, children, Animal, child, Object*);
 
 Usage:
 	size_t childrenSize = animalWrapper->children.size(); // Calls Animal_child_count_get(animal);
 	Object* child = animalWrapper->children[index]; // Calls Animal_child_get(animal, index);
 */
-#define ARRAY_GETTER_PROXY(CPPCLASS, CLASS, PROP, PROPS, TYPE) \
+#define ARRAY_GETTER_PROXY(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
 	ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, { \
 		return GET(self, CLASS, PROP##_count); \
 	}, { \
@@ -720,7 +720,7 @@ struct ArrayAccessorProxy : Proxy<Base> {
 	}
 
 
-#define ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, PROPS, TYPE, COUNT, GETTER, SETTER) \
+#define ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROPS, PROP, TYPE, COUNT, GETTER, SETTER) \
 	struct Proxy_##PROPS { \
 		PROXY_METHODS(CPPCLASS, PROPS) \
 		ARRAY_ACCESSOR_PROXY_METHODS(PROP, TYPE, COUNT, GETTER, SETTER) \
@@ -733,14 +733,14 @@ struct ArrayAccessorProxy : Proxy<Base> {
 PROPS should be plural since C++ arrays are typically plural.
 
 Example:
-	ARRAY_ACCESSOR_PROXY(AnimalWrapper, Animal, child, children, Object*);
+	ARRAY_ACCESSOR_PROXY(AnimalWrapper, children, Animal, child, Object*);
 
 Usage:
 	// Everything in ARRAY_GETTER_PROXY, plus
 	animalWrapper->children[index] = child; // Calls Animal_child_set(animal, index, child);
 */
-#define ARRAY_ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, PROPS, TYPE) \
-	ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, PROPS, TYPE, { \
+#define ARRAY_ACCESSOR_PROXY(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
+	ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROPS, PROP, TYPE, { \
 		return GET(self, CLASS, PROP##_count); \
 	}, { \
 		return GET(self, CLASS, PROP, index); \
@@ -758,7 +758,7 @@ Usage:
 	}
 
 
-#define VECTOR_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, PROPS, TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
+#define VECTOR_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROPS, PROP, TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
 	struct Proxy_##PROPS { \
 		PROXY_METHODS(CPPCLASS, PROPS) \
 		VECTOR_ACCESSOR_PROXY_METHODS(PROP, TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
@@ -767,8 +767,8 @@ Usage:
 	ArrayAccessorProxy<Proxy_##PROPS> PROPS
 
 
-#define VECTOR_ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, PROPS, TYPE) \
-	VECTOR_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, PROPS, TYPE, { \
+#define VECTOR_ACCESSOR_PROXY(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
+	VECTOR_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROPS, PROP, TYPE, { \
 		return GET(self, CLASS, PROP##_count); \
 	}, { \
 		SET(self, CLASS, PROP##_count, count); \
