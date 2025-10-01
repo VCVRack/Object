@@ -265,11 +265,10 @@ Example:
 Declares the functions:
 	size_t Animal_child_count_get(const Object* self);
 	Object* Animal_child_get(const Object* self, size_t index);
-	void Animal_child_set(const Object* self, size_t index, Object* element);
+	void Animal_child_set(Object* self, size_t index, Object* element);
 */
 #define ARRAY_ACCESSOR(CLASS, PROP, TYPE) \
-	GETTER(CLASS, PROP##_count, size_t); \
-	METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index)); \
+	ARRAY_GETTER(CLASS, PROP, TYPE); \
 	METHOD(CLASS, PROP##_set, void, (size_t index, TYPE PROP))
 
 
@@ -505,13 +504,13 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_SETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE)
 
 
-#define DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNT, GETTER) \
-	DEFINE_GETTER(CLASS, PROP##_count, size_t, 0, COUNT) \
+#define DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER) \
+	DEFINE_GETTER(CLASS, PROP##_count, size_t, 0, COUNTGETTER) \
 	DEFINE_METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index), DEFAULT, GETTER)
 
 
-#define DEFINE_ARRAY_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNT, GETTER, SETTER) \
-	DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNT, GETTER) \
+#define DEFINE_ARRAY_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER, SETTER) \
+	DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER) \
 	DEFINE_METHOD(CLASS, PROP##_set, void, (size_t index, TYPE PROP), VOID, SETTER)
 
 
