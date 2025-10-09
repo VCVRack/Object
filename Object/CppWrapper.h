@@ -21,6 +21,7 @@ ACCESSOR(CppWrapper, destructor, CppWrapper_destructor_f*);
 #include <vector>
 #include <type_traits>
 #include <iterator>
+#include <utility>
 
 
 /** Base class that wraps an Object and its methods.
@@ -75,6 +76,10 @@ struct ObjectWrapper {
 	/** Gets the Object, preserving constness. */
 	Object* self_get() { return self; }
 	const Object* self_get() const { return self; }
+
+	size_t use_count() const {
+		return Object_refs_get(self_get());
+	}
 
 	/** Gets an ObjectWrapper's Object, gracefully handling NULL. */
 	static Object* self_get(ObjectWrapper* wrapper) {
@@ -157,7 +162,10 @@ Example:
 /** Reference counter for an ObjectWrapper subclass.
 
 If T is newly constructed, use
-	Ref<T> ref = Ref<T>::adopt(new ObjectWrapper);
+	Ref<Animal> ref(new Animal(), true);
+
+or construct in-place like
+	Ref<Animal> ref(std::in_place, "Fido");
 */
 template <class T>
 struct Ref {
@@ -168,9 +176,14 @@ struct Ref {
 	Ref() {}
 
 	// ObjectWrapper constructor
-	Ref(T* wrapper) : wrapper(wrapper) {
-		obtain();
+	Ref(T* wrapper, bool adopt = false) : wrapper(wrapper) {
+		if (!adopt)
+			obtain();
 	}
+
+	// In-place constructor
+	template <typename... Args>
+	explicit Ref(std::in_place_t, Args&&... args) : Ref(new T(std::forward<Args>(args)...), true) {}
 
 	// Copy constructor
 	Ref(const Ref& other) {
@@ -223,7 +236,7 @@ struct Ref {
 	T* operator->() const { return wrapper; }
 
 	size_t use_count() const {
-		return wrapper ? Object_refs_get(wrapper->self) : 0;
+		return wrapper ? Object_refs_get(wrapper->self_get()) : 0;
 	}
 
 	explicit operator bool() const { return wrapper; }
@@ -232,23 +245,17 @@ struct Ref {
 		return wrapper == other.wrapper;
 	}
 
-	static Ref adopt(T *wrapper) {
-		Ref ref;
-		ref.wrapper = wrapper;
-		return ref;
-	}
-
 private:
 	T* wrapper = NULL;
 
 	void obtain() noexcept {
-		if (wrapper)
-			Object_obtain(wrapper->self);
+		if (wrapper && wrapper->original)
+			Object_obtain(wrapper->self_get());
 	}
 
 	void release() noexcept {
-		if (wrapper)
-			Object_release(wrapper->self);
+		if (wrapper && wrapper->original)
+			Object_release(wrapper->self_get());
 	}
 };
 
