@@ -24,13 +24,12 @@ struct Animal {
 
 
 DEFINE_CLASS(Animal, (), (), {
-	Animal* data = (Animal*) malloc(sizeof(Animal));
-	data->legs = 0;
+	Animal* data = (Animal*) calloc(1, sizeof(Animal));
 	PUSH_CLASS(self, Animal, data);
 	PUSH_METHOD(self, Animal, Animal, speak);
 	PUSH_ACCESSOR(self, Animal, Animal, legs);
 }, {
-	// printf("bye Animal\n");
+	printf("bye Animal\n");
 	free(data);
 })
 
@@ -55,17 +54,20 @@ struct Dog {
 };
 
 
-DEFINE_CLASS(Dog, (), (), {
+DEFINE_CLASS(Dog, (const char* name), (name), {
 	SPECIALIZE(self, Animal);
-	Dog* data = (Dog*) malloc(sizeof(Dog));
-	data->name = NULL;
+
+	Dog* data = (Dog*) calloc(1, sizeof(Dog));
 	PUSH_CLASS(self, Dog, data);
+
 	PUSH_METHOD(self, Animal, Dog, speak);
 	PUSH_ACCESSOR(self, Animal, Dog, legs);
 	PUSH_ACCESSOR(self, Dog, Dog, name);
+
 	SET(self, Animal, legs, 4);
+	SET(self, Dog, name, name);
 }, {
-	// printf("bye Dog\n");
+	printf("bye Dog\n");
 	free(data->name);
 	free(data);
 })
@@ -92,32 +94,3 @@ DEFINE_ACCESSOR_VIRTUAL(Dog, name, const char*, "", {
 	free(data->name);
 	data->name = strdup2(name);
 })
-
-
-// Usage example
-
-int main() {
-	Object* animal = Animal_create();
-
-	// Non-virtual method, cannot be overridden
-	Animal_pet(animal); // "You pet the animal."
-
-	// Virtual method
-	Animal_speak(animal); // "I'm an animal with 0 legs."
-
-	// We can specialize existing Objects even after they are created.
-	// If the object is already a Dog, this fails gracefully.
-	Dog_specialize(animal);
-
-	// Call virtual setters
-	Dog_name_set(animal, "Fido");
-	Animal_legs_set(animal, 3);
-
-	// Call virtual method, which calls Dog's overridden implementation.
-	Animal_speak(animal); // "Woof, I'm a dog named Fido with 3 legs."
-
-	// All Objects must be released.
-	Object_release(animal);
-
-	return 0;
-}

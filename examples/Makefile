@@ -15,12 +15,12 @@ CFLAGS += -std=c99
 LDFLAGS += $(FLAGS)
 
 
-all: Animal
+all: test
 
-run: Animal
+run: test
 	time ./$^
 
-Animal: Animal.c.o ../src/Object.cpp.o ../src/WeakObject.c.o
+test: Animal.c.o ../src/Object.cpp.o ../src/WeakObject.c.o ../src/CppWrapper.c.o test.cpp.o
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 %.cpp.o: %.cpp
@@ -30,4 +30,4 @@ Animal: Animal.c.o ../src/Object.cpp.o ../src/WeakObject.c.o
 	$(CC) $(CFLAGS) -c -o $@ $^
 
 clean:
-	rm -rfv *.o ../src/*.o Animal
+	rm -rfv *.o ../src/*.o test

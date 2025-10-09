@@ -21,7 +21,7 @@ METHOD_CONST(Animal, pet, void, ());
 /** A domesticated wolf.
 Inherits Animal.
 */
-CLASS(Dog, ());
+CLASS(Dog, (const char* name));
 METHOD_CONST_OVERRIDE(Dog, speak, void, ());
 ACCESSOR_OVERRIDE(Dog, legs, int);
 ACCESSOR_VIRTUAL(Dog, name, const char*);
