@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdio.h>
-#include <Object/CppWrapper.h>
+#include <Object/ObjectWrapper.hpp>
 #include "Animal.h"
 
 
@@ -57,7 +57,7 @@ struct Dog : Animal {
 	ACCESSOR_PROXY(Dog, Dog, name, const char*);
 
 	GETTER_PROXY_CUSTOM(Dog, that, Dog*, {
-		return CppWrapper_castOrCreate<Dog>(self);
+		return ObjectWrapper_castOrCreate<Dog>(self);
 	});
 };
 

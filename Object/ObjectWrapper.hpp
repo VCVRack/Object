@@ -1,18 +1,6 @@
 #pragma once
 
-#include "Object.h"
-
-
-/** Wraps a C++ ObjectWrapper subclass instance so users can interact with your Object API using C++ class syntax.
-*/
-CLASS(CppWrapper, ());
-typedef void CppWrapper_destructor_f(void* wrapper);
-METHOD(CppWrapper, wrapper_set, void, (const void* context, void* wrapper, CppWrapper_destructor_f* destructor));
-METHOD_CONST(CppWrapper, wrapper_get, void*, (const void* context));
-
-
-#ifdef __cplusplus
-
+#include "ObjectWrapper.h"
 #include "WeakObject.h"
 #include <assert.h>
 #include <vector>
@@ -51,8 +39,8 @@ struct ObjectWrapper {
 	If `original` is true, use BIND_* macros to override the Object's virtual methods with C++ virtual methods.
 	*/
 	ObjectWrapper(Object* self, bool original = false) : self(self), original(original) {
-		CppWrapper_specialize(self);
-		CppWrapper_wrapper_set(self, &typeid(ObjectWrapper), this, destructor);
+		ObjectWrapper_specialize(self);
+		ObjectWrapper_wrapper_set(self, &typeid(ObjectWrapper), this, destructor);
 	}
 
 	/** Objects can't be copied by default, so disable copying ObjectWrapper. */
@@ -60,8 +48,8 @@ struct ObjectWrapper {
 	ObjectWrapper& operator=(const ObjectWrapper&) = delete;
 
 	virtual ~ObjectWrapper() {
-		// Remove CppWrapper -> ObjectWrapper association
-		CppWrapper_wrapper_set(self, &typeid(ObjectWrapper), NULL, NULL);
+		// Remove ObjectWrapper -> ObjectWrapper association
+		ObjectWrapper_wrapper_set(self, &typeid(ObjectWrapper), NULL, NULL);
 		// Proxy wrappers don't own a reference
 		if (original)
 			Object_release(self);
@@ -94,22 +82,22 @@ struct ObjectWrapper {
 
 
 template <class T>
-T* CppWrapper_cast(Object* self) {
-	ObjectWrapper* wrapper = (ObjectWrapper*) GET(self, CppWrapper, wrapper, &typeid(ObjectWrapper));
+T* ObjectWrapper_cast(Object* self) {
+	ObjectWrapper* wrapper = (ObjectWrapper*) GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper));
 	return dynamic_cast<T*>(wrapper);
 }
 
 template <class T>
-const T* CppWrapper_cast(const Object* self) {
-	const ObjectWrapper* wrapper = (const ObjectWrapper*) GET(self, CppWrapper, wrapper, &typeid(ObjectWrapper));
+const T* ObjectWrapper_cast(const Object* self) {
+	const ObjectWrapper* wrapper = (const ObjectWrapper*) GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper));
 	return dynamic_cast<const T*>(wrapper);
 }
 
 template <class T>
-T* CppWrapper_castOrCreate(Object* self) {
+T* ObjectWrapper_castOrCreate(Object* self) {
 	if (!self)
 		return NULL;
-	ObjectWrapper* wrapper = (ObjectWrapper*) GET(self, CppWrapper, wrapper, &typeid(ObjectWrapper));
+	ObjectWrapper* wrapper = (ObjectWrapper*) GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper));
 	if (wrapper) {
 		// Can be null if wrapper exists but invalid type.
 		return dynamic_cast<T*>(wrapper);
@@ -129,14 +117,14 @@ Example:
 */
 #define BIND_METHOD(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
 	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](Object* self COMMA_EXPAND ARGTYPES) { \
-		CPPCLASS* that = CppWrapper_cast<CPPCLASS>(self); \
+		CPPCLASS* that = ObjectWrapper_cast<CPPCLASS>(self); \
 		assert(that); \
 		CODE \
 	}))
 
 #define BIND_METHOD_CONST(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
 	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](const Object* self COMMA_EXPAND ARGTYPES) { \
-		const CPPCLASS* that = CppWrapper_cast<CPPCLASS>(self); \
+		const CPPCLASS* that = ObjectWrapper_cast<CPPCLASS>(self); \
 		assert(that); \
 		CODE \
 	}))
@@ -782,6 +770,3 @@ Usage:
 	}, { \
 		SET(self, CLASS, PROP, index, PROP); \
 	})
-
-
-#endif // __cplusplus

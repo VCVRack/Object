@@ -1,22 +1,22 @@
-#include <Object/CppWrapper.h>
+#include <Object/ObjectWrapper.h>
 #include <assert.h>
 #include <unordered_map>
 
 
 struct WrapperData {
 	void* wrapper;
-	CppWrapper_destructor_f* destructor;
+	ObjectWrapper_destructor_f* destructor;
 };
 
 
-struct CppWrapper {
+struct ObjectWrapper {
 	std::unordered_map<const void*, WrapperData> wrappers;
 };
 
 
-DEFINE_CLASS(CppWrapper, (), (), {
-	CppWrapper* data = new CppWrapper;
-	PUSH_CLASS(self, CppWrapper, data);
+DEFINE_CLASS(ObjectWrapper, (), (), {
+	ObjectWrapper* data = new ObjectWrapper;
+	PUSH_CLASS(self, ObjectWrapper, data);
 }, {
 	while (!data->wrappers.empty()) {
 		auto it = data->wrappers.begin();
@@ -26,7 +26,7 @@ DEFINE_CLASS(CppWrapper, (), (), {
 })
 
 
-DEFINE_METHOD(CppWrapper, wrapper_set, void, (const void* context, void* wrapper, CppWrapper_destructor_f* destructor), VOID, {
+DEFINE_METHOD(ObjectWrapper, wrapper_set, void, (const void* context, void* wrapper, ObjectWrapper_destructor_f* destructor), VOID, {
 	if (wrapper) {
 		auto result = data->wrappers.insert({context, {wrapper, destructor}});
 		// Key must not already exist
@@ -38,7 +38,7 @@ DEFINE_METHOD(CppWrapper, wrapper_set, void, (const void* context, void* wrapper
 })
 
 
-DEFINE_METHOD_CONST(CppWrapper, wrapper_get, void*, (const void* context), NULL, {
+DEFINE_METHOD_CONST(ObjectWrapper, wrapper_get, void*, (const void* context), NULL, {
 	auto it = data->wrappers.find(context);
 	if (it == data->wrappers.end())
 		return NULL;
