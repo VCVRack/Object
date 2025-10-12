@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <dlfcn.h>
+#include <assert.h>
 #include "Animal.hpp"
 
 
@@ -41,7 +41,7 @@ int main() {
 
 	{
 		Ref<cpp::Dog> cppDog(std::in_place, "Gromit");
-		printf("%lu refs\n", cppDog.use_count());
+		assert(cppDog.use_count() == 1);
 
 		cppDog->speak();
 		cppDog->name = "Ralph";
@@ -50,14 +50,14 @@ int main() {
 		cppDog->speak();
 
 		cppDogWeak = cppDog;
-
-		printf("%lu weak refs\n", cppDogWeak.use_count());
+		// Weak handles don't increase the Object's reference count
+		assert(cppDogWeak.use_count() == 1);
 
 		Ref<cpp::Dog> cppDog2 = cppDog;
-		printf("%lu refs\n", cppDog.use_count());
+		assert(cppDog.use_count() == 2);
 	}
 
-	printf("%lu weak refs\n", cppDogWeak.use_count());
+	assert(cppDogWeak.use_count() == 0);
 
 
 
@@ -65,17 +65,24 @@ int main() {
 	printf("\nC++ Animal proxy example\n");
 
 	Object* dog = Dog_create("Toto");
-	printf("%lu refs\n", Object_refs_get(dog));
+	assert(GET(dog, Object, refs) == 1);
 
 	{
-		Ref<cpp::Dog> cppDog(std::in_place, dog);
-		printf("%lu refs\n", Object_refs_get(dog));
-
+		// Only one proxy object is allowed per context (language or plugin), so use castOrCreate to guarantee this.
+		cpp::Dog* cppDog = CppWrapper_castOrCreate<cpp::Dog>(dog);
+		// Proxies don't increase the Object's reference count
+		assert(GET(dog, Object, refs) == 1);
 		cppDog->speak();
+
+		// Refs increase reference count
+		Ref<cpp::Dog> cppDogRef = cppDog;
+		assert(GET(dog, Object, refs) == 2);
+		cppDogRef->speak();
+
+		// Proxy is valid until Object is deleted.
 	}
 
-	printf("%lu refs\n", Object_refs_get(dog));
-
+	assert(GET(dog, Object, refs) == 1);
 	Object_release(dog);
 
 	return 0;

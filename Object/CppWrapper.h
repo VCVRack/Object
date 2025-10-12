@@ -1,22 +1,19 @@
 #pragma once
 
 #include "Object.h"
-#include "WeakObject.h"
-
-
-typedef struct ObjectWrapper ObjectWrapper;
 
 
 /** Wraps a C++ ObjectWrapper subclass instance so users can interact with your Object API using C++ class syntax.
 */
 CLASS(CppWrapper, ());
-ACCESSOR(CppWrapper, wrapper, ObjectWrapper*);
-typedef void CppWrapper_destructor_f(ObjectWrapper* wrapper);
-ACCESSOR(CppWrapper, destructor, CppWrapper_destructor_f*);
+typedef void CppWrapper_destructor_f(void* wrapper);
+METHOD(CppWrapper, wrapper_set, void, (const void* context, void* wrapper, CppWrapper_destructor_f* destructor));
+METHOD_CONST(CppWrapper, wrapper_get, void*, (const void* context));
 
 
 #ifdef __cplusplus
 
+#include "WeakObject.h"
 #include <assert.h>
 #include <vector>
 #include <type_traits>
@@ -54,10 +51,8 @@ struct ObjectWrapper {
 	If `original` is true, use BIND_* macros to override the Object's virtual methods with C++ virtual methods.
 	*/
 	ObjectWrapper(Object* self, bool original = false) : self(self), original(original) {
-		// TODO Assert that existing wrapper does not already exist
 		CppWrapper_specialize(self);
-		CppWrapper_wrapper_set(self, this);
-		CppWrapper_destructor_set(self, destructor);
+		CppWrapper_wrapper_set(self, &typeid(ObjectWrapper), this, destructor);
 	}
 
 	/** Objects can't be copied by default, so disable copying ObjectWrapper. */
@@ -66,8 +61,7 @@ struct ObjectWrapper {
 
 	virtual ~ObjectWrapper() {
 		// Remove CppWrapper -> ObjectWrapper association
-		CppWrapper_wrapper_set(self, NULL);
-		CppWrapper_destructor_set(self, NULL);
+		CppWrapper_wrapper_set(self, &typeid(ObjectWrapper), NULL, NULL);
 		// Proxy wrappers don't own a reference
 		if (original)
 			Object_release(self);
@@ -93,21 +87,21 @@ struct ObjectWrapper {
 		return wrapper->self;
 	}
 
-	static void destructor(ObjectWrapper* wrapper) {
-		delete wrapper;
+	static void destructor(void* wrapper) {
+		delete reinterpret_cast<ObjectWrapper*>(wrapper);
 	}
 };
 
 
 template <class T>
 T* CppWrapper_cast(Object* self) {
-	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	ObjectWrapper* wrapper = (ObjectWrapper*) GET(self, CppWrapper, wrapper, &typeid(ObjectWrapper));
 	return dynamic_cast<T*>(wrapper);
 }
 
 template <class T>
 const T* CppWrapper_cast(const Object* self) {
-	const ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	const ObjectWrapper* wrapper = (const ObjectWrapper*) GET(self, CppWrapper, wrapper, &typeid(ObjectWrapper));
 	return dynamic_cast<const T*>(wrapper);
 }
 
@@ -115,13 +109,12 @@ template <class T>
 T* CppWrapper_castOrCreate(Object* self) {
 	if (!self)
 		return NULL;
-	ObjectWrapper* wrapper = GET(self, CppWrapper, wrapper);
+	ObjectWrapper* wrapper = (ObjectWrapper*) GET(self, CppWrapper, wrapper, &typeid(ObjectWrapper));
 	if (wrapper) {
 		// Can be null if wrapper exists but invalid type.
 		return dynamic_cast<T*>(wrapper);
 	}
 	T* t = new T(self);
-	SET(self, CppWrapper, wrapper, t);
 	return t;
 }
 
@@ -183,7 +176,12 @@ struct Ref {
 
 	// In-place constructor
 	template <typename... Args>
-	explicit Ref(std::in_place_t, Args&&... args) : Ref(new T(std::forward<Args>(args)...), true) {}
+	explicit Ref(std::in_place_t, Args&&... args) : wrapper(new T(std::forward<Args>(args)...)) {
+		// If constructing an original wrapper, we already hold the sole reference.
+		// If constructing a proxy wrapper from an existing Object, obtain a reference.
+		if (!wrapper->original)
+			obtain();
+	}
 
 	// Copy constructor
 	Ref(const Ref& other) {
@@ -249,12 +247,12 @@ private:
 	T* wrapper = NULL;
 
 	void obtain() noexcept {
-		if (wrapper && wrapper->original)
+		if (wrapper)
 			Object_obtain(wrapper->self_get());
 	}
 
 	void release() noexcept {
-		if (wrapper && wrapper->original)
+		if (wrapper)
 			Object_release(wrapper->self_get());
 	}
 };
