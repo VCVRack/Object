@@ -162,6 +162,8 @@ struct Ref {
 			obtain();
 	}
 
+	// Available in C++17
+#if __cplusplus >= 201703L
 	// In-place constructor
 	template <typename... Args>
 	explicit Ref(std::in_place_t, Args&&... args) : wrapper(new T(std::forward<Args>(args)...)) {
@@ -170,6 +172,7 @@ struct Ref {
 		if (!wrapper->original)
 			obtain();
 	}
+#endif
 
 	// Copy constructor
 	Ref(const Ref& other) {
