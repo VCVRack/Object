@@ -148,14 +148,35 @@ void* Object_supermethod_get(const Object* self, void* method) {
 }
 
 
-void Object_debug(const Object* self) {
+char* Object_inspect(const Object* self) {
 	if (!self)
-		return;
-	fprintf(stderr, "Object(%p):", self);
+		return NULL;
+
+	size_t capacity = 1024;
+	size_t pos = 0;
+	char* s = (char*) malloc(capacity);
+	if (!s)
+		return NULL;
+
+	int size = snprintf(s + pos, capacity - pos, "Object(%p):", self);
+	if (size < 0) {
+		free(s);
+		return NULL;
+	}
+	pos += size;
+
 	for (const Class* cls : self->classes) {
 		void* data = NULL;
 		Object_class_check(self, cls, &data);
-		fprintf(stderr, " %s(%p)", cls->name, data);
+		size = snprintf(s + pos, capacity - pos, " %s(%p)", cls->name, data);
+		if (size < 0)
+			break;
+		pos += size;
+		if (pos >= capacity) {
+			pos = capacity - 1;
+			break;
+		}
 	}
-	fprintf(stderr, "\n");
+	s = (char*) realloc(s, pos + 1);
+	return s;
 }

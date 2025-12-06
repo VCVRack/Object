@@ -678,10 +678,10 @@ void* Object_method_get(const Object* self, void* dispatcher);
 void* Object_supermethod_get(const Object* self, void* method);
 
 
-/** Prints all types of an object in order of specialization.
-TODO: Change to `char* Object_inspect(self)` or something.
+/** Generates a string listing all type names and data pointers of an object in order of specialization.
+Caller must free().
 */
-void Object_debug(const Object* self);
+char* Object_inspect(const Object* self);
 
 
 EXTERNC_END
