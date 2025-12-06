@@ -419,7 +419,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 
 #define DEFINE_GETTER_INTERFACE(CLASS, PROP, TYPE, DEFAULT) \
-	DEFINE_METHOD_CONST_INTERFACE(CLASS, PROP##_get, TYPE, (), DEFAULT)
+	DEFINE_METHOD_CONST_INTERFACE(CLASS, PROP##_get, TYPE, (), DEFAULT, ())
 
 
 #define DEFINE_GETTER_OVERRIDE(CLASS, PROP, TYPE, DEFAULT, CODE) \
