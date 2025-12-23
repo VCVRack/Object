@@ -89,8 +89,9 @@ size_t Object_refs_get(const Object* self) {
 
 
 void Object_class_push(Object* self, const Class* cls, void* data) {
-	if (!self || !cls)
+	if (!self)
 		return;
+	assert(cls);
 	// Set class data
 	auto result = self->datas.insert({cls, data});
 	// Return if class already existed
@@ -116,11 +117,15 @@ bool Object_class_check(const Object* self, const Class* cls, void** dataOut) {
 void Object_method_push(Object* self, void* dispatcher, void* method) {
 	if (!self)
 		return;
+	assert(dispatcher);
+	assert(method);
 	// Try to set method
 	auto result = self->methods.insert({dispatcher, method});
 	// If method already exists, replace and set supermethod
 	if (!result.second) {
 		void* supermethod = result.first->second;
+		// We can't re-override the same method
+		assert(method != supermethod);
 		// Don't replace method's supermethod if already set
 		self->supermethods.insert({method, supermethod});
 		result.first->second = method;
