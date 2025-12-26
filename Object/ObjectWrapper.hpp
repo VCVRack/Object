@@ -15,11 +15,11 @@ A library using VCV Object can offer a C++ wrapper API by writing an ObjectWrapp
 
 Once defined, there are two ways to use an ObjectWrapper subclass.
 
-You can proxy an existing Object by calling the constructor `ObjectWrapper(object)`.
+You can proxy an existing Object by calling `ObjectWrapper::proxy<T>(object)` which calls the constructor `ObjectWrapper(object)`.
 No reference is obtained, and the proxy is deleted when the Object is freed.
 You can obtain a reference with the Ref class.
 
-Or you can further subclass an ObjectWrapper subclass and override its virtual methods.
+Or, you can subclass an ObjectWrapper subclass and override its virtual methods.
 When instantiated, it creates and owns its Object until deleted.
 When the Object's methods are called (such as `Animal_speak()`), your overridden C++ methods are called.
 
@@ -30,26 +30,58 @@ struct ObjectWrapper {
 	Object* const self;
 	const bool original;
 
+	/** Proxies an Object to a subclass of ObjectWrapper `T`.
+	Returns a cached proxy if exists and cast-able to T.
+	Otherwise, creates a new T instance and uses that for future proxies.
+	*/
+	template <class T>
+	static T* proxy(Object* self) {
+		if (!self)
+			return NULL;
+		T* wrapper = lookup<T>(self);
+		if (wrapper)
+			return wrapper;
+		// ObjectWrapper either doesn't exist or cannot be down-cast to T.
+		// Create new ObjectWrapper, which will override this one.
+		wrapper = new T(self);
+		return wrapper;
+	}
+
+	/** Returns the ObjectWrapper associated with an Object. */
+	template <class T>
+	static T* lookup(Object* self) {
+		ObjectWrapper* wrapper = reinterpret_cast<ObjectWrapper*>(GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper)));
+		return dynamic_cast<T*>(wrapper);
+	}
+
+	template <class T>
+	static const T* lookup(const Object* self) {
+		const ObjectWrapper* wrapper = reinterpret_cast<const ObjectWrapper*>(GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper)));
+		return dynamic_cast<const T*>(wrapper);
+	}
+
 	/** Constructs an ObjectWrapper with a new Object.
 	Each ObjectWrapper subclass should implement its own default constructor that creates a specialized Object.
 	*/
 	ObjectWrapper() : ObjectWrapper(Object_create(), true) {}
 
+protected:
 	/** Constructs an ObjectWrapper with an existing Object.
 	If `original` is true, use BIND_* macros to override the Object's virtual methods with C++ virtual methods.
 	*/
 	ObjectWrapper(Object* self, bool original = false) : self(self), original(original) {
 		ObjectWrapper_specialize(self);
-		ObjectWrapper_wrapper_set(self, &typeid(ObjectWrapper), this, destructor);
+		ObjectWrapper_wrapper_add(self, this, &typeid(ObjectWrapper), destructor);
 	}
 
+public:
 	/** Objects can't be copied by default, so disable copying ObjectWrapper. */
 	ObjectWrapper(const ObjectWrapper&) = delete;
 	ObjectWrapper& operator=(const ObjectWrapper&) = delete;
 
 	virtual ~ObjectWrapper() {
-		// Remove ObjectWrapper -> ObjectWrapper association
-		ObjectWrapper_wrapper_set(self, &typeid(ObjectWrapper), NULL, NULL);
+		// Remove Object -> ObjectWrapper association
+		ObjectWrapper_wrapper_remove(self, this);
 		// Proxy wrappers don't own a reference
 		if (original)
 			Object_release(self);
@@ -81,32 +113,6 @@ struct ObjectWrapper {
 };
 
 
-template <class T>
-T* ObjectWrapper_cast(Object* self) {
-	ObjectWrapper* wrapper = (ObjectWrapper*) GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper));
-	return dynamic_cast<T*>(wrapper);
-}
-
-template <class T>
-const T* ObjectWrapper_cast(const Object* self) {
-	const ObjectWrapper* wrapper = (const ObjectWrapper*) GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper));
-	return dynamic_cast<const T*>(wrapper);
-}
-
-template <class T>
-T* ObjectWrapper_castOrCreate(Object* self) {
-	if (!self)
-		return NULL;
-	ObjectWrapper* wrapper = (ObjectWrapper*) GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper));
-	if (wrapper) {
-		// Can be null if wrapper exists but invalid type.
-		return dynamic_cast<T*>(wrapper);
-	}
-	T* t = new T(self);
-	return t;
-}
-
-
 /** Overrides an Object's method with a lambda/thunk that calls your ObjectWrapper subclass' method.
 Provides a `that` variable that points to your ObjectWrapper.
 
@@ -117,14 +123,14 @@ Example:
 */
 #define BIND_METHOD(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
 	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](Object* self COMMA_EXPAND ARGTYPES) { \
-		CPPCLASS* that = ObjectWrapper_cast<CPPCLASS>(self); \
+		CPPCLASS* that = ObjectWrapper::lookup<CPPCLASS>(self); \
 		assert(that); \
 		CODE \
 	}))
 
 #define BIND_METHOD_CONST(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
 	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](const Object* self COMMA_EXPAND ARGTYPES) { \
-		const CPPCLASS* that = ObjectWrapper_cast<CPPCLASS>(self); \
+		const CPPCLASS* that = ObjectWrapper::lookup<CPPCLASS>(self); \
 		assert(that); \
 		CODE \
 	}))
