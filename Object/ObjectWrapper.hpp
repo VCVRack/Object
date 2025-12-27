@@ -652,6 +652,7 @@ struct ArrayAccessorProxy : Proxy<Base> {
 		ArrayAccessorProxy& proxy;
 		size_t index;
 		ElementAccessor(ArrayAccessorProxy& proxy, size_t index) : proxy(proxy), index(index) {}
+		ElementAccessor(const ElementAccessor&) = default;
 		operator T() const { return proxy.get(index); }
 		T operator->() const { return (T) *this; }
 		T operator+() const { return +(T) *this; }
