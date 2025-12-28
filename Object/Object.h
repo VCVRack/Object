@@ -660,6 +660,7 @@ size_t Object_refs_get(const Object* self);
 
 /** Assigns an object a class type with a data pointer.
 Does nothing if self is NULL.
+Not thread-safe with accessing classes or calling methods.
 */
 void Object_class_push(Object* self, const Class* cls, void* data);
 
@@ -667,11 +668,13 @@ void Object_class_push(Object* self, const Class* cls, void* data);
 /** Returns true if an object has a class.
 If so, and dataOut is non-NULL, sets the data pointer.
 Returns false if self is NULL.
+Not thread-safe with accessing classes or calling methods.
 */
 bool Object_class_check(const Object* self, const Class* cls, void** dataOut);
 
 
 /** Overrides a method dispatched by the `dispatcher` function pointer.
+Not thread-safe with accessing methods or calling methods.
 */
 void Object_method_push(Object* self, void* dispatcher, void* method);
 void* Object_method_get(const Object* self, void* dispatcher);
@@ -680,6 +683,7 @@ void* Object_supermethod_get(const Object* self, void* method);
 
 /** Generates a string listing all type names and data pointers of an object in order of specialization.
 Caller must free().
+Not thread-safe with accessing classes.
 */
 char* Object_inspect(const Object* self);
 
