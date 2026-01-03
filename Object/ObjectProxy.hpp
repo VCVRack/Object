@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ObjectWrapper.h"
+#include "ObjectProxies.h"
 #include "WeakObject.h"
 #include <assert.h>
 #include <vector>
@@ -11,77 +11,77 @@
 
 /** Base class that wraps an Object and its methods.
 
-A library using VCV Object can offer a C++ wrapper API by writing an ObjectWrapper subclass for each Object class and writing proxy virtual/non-virtual methods and accessors.
+A library using VCV Object can offer a C++ proxy API by writing an ObjectProxy subclass for each Object class and writing proxy virtual/non-virtual methods and accessors.
 
-Once defined, there are two ways to use an ObjectWrapper subclass.
+Once defined, there are two ways to use an ObjectProxy subclass.
 
-You can proxy an existing Object by calling `ObjectWrapper::proxy<T>(object)` which calls the constructor `ObjectWrapper(object)`.
+You can proxy an existing Object by calling `ObjectProxy::proxy<T>(object)` which calls the constructor `ObjectProxy(object)`.
 No reference is obtained, and the proxy is deleted when the Object is freed.
 You can obtain a reference with the Ref class.
 
-Or, you can subclass an ObjectWrapper subclass and override its virtual methods.
+Or, you can subclass an ObjectProxy subclass and override its virtual methods.
 When instantiated, it creates and owns its Object until deleted.
 When the Object's methods are called (such as `Animal_speak()`), your overridden C++ methods are called.
 
 See Animal.hpp for an example C++ class that wraps an Animal object.
 */
-struct ObjectWrapper {
+struct ObjectProxy {
 	/** Owned if `original` is true. */
 	Object* const self;
 	const bool original;
 
-	/** Proxies an Object to a subclass of ObjectWrapper `T`.
+	/** Proxies an Object to a subclass of ObjectProxy `T`.
 	Returns a cached proxy if exists and cast-able to T.
 	Otherwise, creates a new T instance and uses that for future proxies.
 	*/
 	template <class T>
-	static T* proxy(Object* self) {
+	static T* getOrCreate(Object* self) {
 		if (!self)
 			return NULL;
-		T* wrapper = lookup<T>(self);
-		if (wrapper)
-			return wrapper;
-		// ObjectWrapper either doesn't exist or cannot be down-cast to T.
-		// Create new ObjectWrapper, which will override this one.
-		wrapper = new T(self);
-		return wrapper;
+		T* proxy = get<T>(self);
+		if (proxy)
+			return proxy;
+		// ObjectProxy either doesn't exist or cannot be down-cast to T.
+		// Create new ObjectProxy, which will override this one.
+		proxy = new T(self);
+		return proxy;
 	}
 
-	/** Returns the ObjectWrapper associated with an Object. */
+	/** Returns the ObjectProxy associated with an Object. */
 	template <class T>
-	static T* lookup(Object* self) {
-		ObjectWrapper* wrapper = reinterpret_cast<ObjectWrapper*>(GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper)));
-		return dynamic_cast<T*>(wrapper);
+	static T* get(Object* self) {
+		ObjectProxy* proxy = reinterpret_cast<ObjectProxy*>(ObjectProxies_get(self, &typeid(ObjectProxy)));
+		return dynamic_cast<T*>(proxy);
 	}
 
 	template <class T>
-	static const T* lookup(const Object* self) {
-		const ObjectWrapper* wrapper = reinterpret_cast<const ObjectWrapper*>(GET(self, ObjectWrapper, wrapper, &typeid(ObjectWrapper)));
-		return dynamic_cast<const T*>(wrapper);
+	static const T* get(const Object* self) {
+		const ObjectProxy* proxy = reinterpret_cast<const ObjectProxy*>(ObjectProxies_get(self, &typeid(ObjectProxy)));
+		return dynamic_cast<const T*>(proxy);
 	}
 
-	/** Constructs an ObjectWrapper with a new Object.
-	Each ObjectWrapper subclass should implement its own default constructor that creates a specialized Object.
+	/** Constructs an ObjectProxy with a new Object.
+	Each ObjectProxy subclass should implement its own default constructor that creates a specialized Object.
 	*/
-	ObjectWrapper() : ObjectWrapper(Object_create(), true) {}
+	ObjectProxy() : ObjectProxy(Object_create(), true) {}
 
 protected:
-	/** Constructs an ObjectWrapper with an existing Object.
+	/** Constructs an ObjectProxy with an existing Object.
 	If `original` is true, use BIND_* macros to override the Object's virtual methods with C++ virtual methods.
 	*/
-	ObjectWrapper(Object* self, bool original = false) : self(self), original(original) {
-		ObjectWrapper_specialize(self);
-		ObjectWrapper_wrapper_add(self, this, &typeid(ObjectWrapper), destructor);
+	ObjectProxy(Object* self, bool original = false) : self(self), original(original) {
+		ObjectProxies_specialize(self);
+		ObjectProxies_add(self, this, &typeid(ObjectProxy), destructor);
 	}
 
 public:
-	/** Objects can't be copied by default, so disable copying ObjectWrapper. */
-	ObjectWrapper(const ObjectWrapper&) = delete;
-	ObjectWrapper& operator=(const ObjectWrapper&) = delete;
+	/** Objects can't be copied by default, so disable copying ObjectProxy. */
+	ObjectProxy(const ObjectProxy&) = delete;
+	ObjectProxy& operator=(const ObjectProxy&) = delete;
 
-	virtual ~ObjectWrapper() {
-		// Remove Object -> ObjectWrapper association
-		ObjectWrapper_wrapper_remove(self, this);
+	virtual ~ObjectProxy() {
+		// Remove Object -> ObjectProxy association
+		ObjectProxies_remove(self, this);
 		// Proxy wrappers don't own a reference
 		if (original)
 			Object_release(self);
@@ -95,26 +95,26 @@ public:
 		return Object_refs_get(self_get());
 	}
 
-	/** Gets an ObjectWrapper's Object, gracefully handling NULL. */
-	static Object* self_get(ObjectWrapper* wrapper) {
-		if (!wrapper)
+	/** Gets an ObjectProxy's Object, gracefully handling NULL. */
+	static Object* self_get(ObjectProxy* proxy) {
+		if (!proxy)
 			return NULL;
-		return wrapper->self;
+		return proxy->self;
 	}
-	static const Object* self_get(const ObjectWrapper* wrapper) {
-		if (!wrapper)
+	static const Object* self_get(const ObjectProxy* proxy) {
+		if (!proxy)
 			return NULL;
-		return wrapper->self;
+		return proxy->self;
 	}
 
-	static void destructor(void* wrapper) {
-		delete reinterpret_cast<ObjectWrapper*>(wrapper);
+	static void destructor(void* proxy) {
+		delete reinterpret_cast<ObjectProxy*>(proxy);
 	}
 };
 
 
-/** Overrides an Object's method with a lambda/thunk that calls your ObjectWrapper subclass' method.
-Provides a `that` variable that points to your ObjectWrapper.
+/** Overrides an Object's method with a lambda/thunk that calls your ObjectProxy subclass' method.
+Provides a `that` variable that points to your ObjectProxy.
 
 Example:
 	BIND_METHOD(Animal, Animal, speak, (), {
@@ -123,14 +123,14 @@ Example:
 */
 #define BIND_METHOD(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
 	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](Object* self COMMA_EXPAND ARGTYPES) { \
-		CPPCLASS* that = ObjectWrapper::lookup<CPPCLASS>(self); \
+		CPPCLASS* that = ObjectProxy::get<CPPCLASS>(self); \
 		assert(that); \
 		CODE \
 	}))
 
 #define BIND_METHOD_CONST(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
 	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](const Object* self COMMA_EXPAND ARGTYPES) { \
-		const CPPCLASS* that = ObjectWrapper::lookup<CPPCLASS>(self); \
+		const CPPCLASS* that = ObjectProxy::get<CPPCLASS>(self); \
 		assert(that); \
 		CODE \
 	}))
@@ -146,7 +146,7 @@ Example:
 	BIND_SETTER(CPPCLASS, CLASS, PROP, TYPE, SETTER)
 
 
-/** Reference counter for an ObjectWrapper subclass.
+/** Reference counter for an ObjectProxy subclass.
 
 If T is newly constructed, use
 	Ref<Animal> ref(new Animal(), true);
@@ -156,14 +156,14 @@ or construct in-place like
 */
 template <class T>
 struct Ref {
-	static_assert(std::is_base_of<ObjectWrapper, T>::value, "Ref can only hold references to ObjectWrapper subclasses");
+	static_assert(std::is_base_of<ObjectProxy, T>::value, "Ref can only hold references to ObjectProxy subclasses");
 
 	using element_type = T;
 
 	Ref() {}
 
-	// ObjectWrapper constructor
-	Ref(T* wrapper, bool adopt = false) : wrapper(wrapper) {
+	// ObjectProxy constructor
+	Ref(T* proxy, bool adopt = false) : proxy(proxy) {
 		if (!adopt)
 			obtain();
 	}
@@ -172,24 +172,24 @@ struct Ref {
 #if __cplusplus >= 201703L
 	// In-place constructor
 	template <typename... Args>
-	explicit Ref(std::in_place_t, Args&&... args) : wrapper(new T(std::forward<Args>(args)...)) {
-		// If constructing an original wrapper, we already hold the sole reference.
-		// If constructing a proxy wrapper from an existing Object, obtain a reference.
-		if (!wrapper->original)
+	explicit Ref(std::in_place_t, Args&&... args) : proxy(new T(std::forward<Args>(args)...)) {
+		// If constructing an original proxy, we already hold the sole reference.
+		// If constructing a proxy proxy from an existing Object, obtain a reference.
+		if (!proxy->original)
 			obtain();
 	}
 #endif
 
 	// Copy constructor
 	Ref(const Ref& other) {
-		wrapper = other.wrapper;
+		proxy = other.proxy;
 		obtain();
 	}
 
 	// Move constructor
 	Ref(Ref&& other) {
-		wrapper = other.wrapper;
-		other.wrapper = nullptr;
+		proxy = other.proxy;
+		other.proxy = nullptr;
 	}
 
 	~Ref() {
@@ -198,7 +198,7 @@ struct Ref {
 
 	// Copy assignment
 	Ref& operator=(const Ref& other) {
-		reset(other.wrapper);
+		reset(other.proxy);
 		return *this;
 	}
 
@@ -206,87 +206,87 @@ struct Ref {
 	Ref& operator=(Ref&& other) {
 		if (this != &other) {
 			release();
-			wrapper = other.wrapper;
-			other.wrapper = nullptr;
+			proxy = other.proxy;
+			other.proxy = nullptr;
 		}
 		return *this;
 	}
 
-	void reset(T* wrapper = nullptr) {
-		if (this->wrapper == wrapper)
+	void reset(T* proxy = nullptr) {
+		if (this->proxy == proxy)
 			return;
 		release();
-		this->wrapper = wrapper;
+		this->proxy = proxy;
 		obtain();
 	}
 
 	void swap(Ref& other) {
-		T* wrapper = this->wrapper;
-		this->wrapper = other.wrapper;
-		other.wrapper = wrapper;
+		T* proxy = this->proxy;
+		this->proxy = other.proxy;
+		other.proxy = proxy;
 	}
 
-	T* get() const { return wrapper; }
-	T& operator*() const { return *wrapper; }
-	T* operator->() const { return wrapper; }
+	T* get() const { return proxy; }
+	T& operator*() const { return *proxy; }
+	T* operator->() const { return proxy; }
 
 	size_t use_count() const {
-		return wrapper ? Object_refs_get(wrapper->self_get()) : 0;
+		return proxy ? Object_refs_get(proxy->self_get()) : 0;
 	}
 
-	explicit operator bool() const { return wrapper; }
+	explicit operator bool() const { return proxy; }
 
 	bool operator==(const Ref& other) {
-		return wrapper == other.wrapper;
+		return proxy == other.proxy;
 	}
 
 private:
-	T* wrapper = NULL;
+	T* proxy = NULL;
 
 	void obtain() noexcept {
-		if (wrapper)
-			Object_obtain(wrapper->self_get());
+		if (proxy)
+			Object_obtain(proxy->self_get());
 	}
 
 	void release() noexcept {
-		if (wrapper)
-			Object_release(wrapper->self_get());
+		if (proxy)
+			Object_release(proxy->self_get());
 	}
 };
 
 
-/** Weak reference counter for an ObjectWrapper subclass.
+/** Weak reference counter for an ObjectProxy subclass.
 Similar to std::weak_ptr.
 */
 template <class T>
 struct WeakRef {
-	static_assert(std::is_base_of<ObjectWrapper, T>::value, "WeakRef can only hold references to ObjectWrapper subclasses");
+	static_assert(std::is_base_of<ObjectProxy, T>::value, "WeakRef can only hold references to ObjectProxy subclasses");
 
 	using element_type = T;
 
 	WeakRef() {}
 
-	WeakRef(T* wrapper) {
-		this->wrapper = wrapper;
-		weakObject = wrapper ? WeakObject_create(wrapper->self) : nullptr;
+	WeakRef(T* proxy) {
+		this->proxy = proxy;
+		weakObject = proxy ? WeakObject_create(proxy->self) : nullptr;
 	}
 
 	WeakRef(const Ref<T>& other) {
-		wrapper = other.get();
-		weakObject = wrapper ? WeakObject_create(wrapper->self) : nullptr;
+		proxy = other.get();
+		weakObject = proxy ? WeakObject_create(proxy->self) : nullptr;
 	}
 
 	WeakRef(const WeakRef& other) {
-		wrapper = other.wrapper;
+		proxy = other.proxy;
 		weakObject = other.weakObject;
 		if (weakObject)
 			WeakObject_obtain(weakObject);
 	}
 
 	WeakRef(WeakRef&& other) {
-		wrapper = other.wrapper;
+		proxy = other.proxy;
 		weakObject = other.weakObject;
-		other.wrapper = nullptr;
+		other.proxy = nullptr;
 		other.weakObject = nullptr;
 	}
 
@@ -297,7 +297,7 @@ struct WeakRef {
 	WeakRef& operator=(const WeakRef& other) {
 		if (this != &other) {
 			reset();
-			wrapper = other.wrapper;
+			proxy = other.proxy;
 			weakObject = other.weakObject;
 			if (weakObject)
 				WeakObject_obtain(weakObject);
@@ -308,22 +308,22 @@ struct WeakRef {
 	WeakRef& operator=(WeakRef&& other) {
 		if (this != &other) {
 			reset();
-			wrapper = other.wrapper;
+			proxy = other.proxy;
 			weakObject = other.weakObject;
-			other.wrapper = nullptr;
+			other.proxy = nullptr;
 			other.weakObject = nullptr;
 		}
 		return *this;
 	}
 
 	Ref<T> lock() const {
-		if (!weakObject || !wrapper)
+		if (!weakObject || !proxy)
 			return Ref<T>();
 		Object* object = WeakObject_get(weakObject);
 		if (!object)
 			return Ref<T>();
-		// Cached ObjectWrapper is guaranteed to still be valid.
-		Ref<T> ref(wrapper);
+		// Cached ObjectProxy is guaranteed to still be valid.
+		Ref<T> ref(proxy);
 		// ref now owns a reference so we don't need this one.
 		Object_release(object);
 		return ref;
@@ -334,15 +334,15 @@ struct WeakRef {
 			return;
 		WeakObject_release(weakObject);
 		weakObject = nullptr;
-		wrapper = nullptr;
+		proxy = nullptr;
 	}
 
 	void swap(WeakRef& other) {
-		T* wrapper = this->wrapper;
+		T* proxy = this->proxy;
 		WeakObject* weakObject = this->weakObject;
-		this->wrapper = other.wrapper;
+		this->proxy = other.proxy;
 		this->weakObject = other.weakObject;
-		other.wrapper = wrapper;
+		other.proxy = proxy;
 		other.weakObject = weakObject;
 	}
 
@@ -364,11 +364,11 @@ struct WeakRef {
 	}
 
 	bool operator==(const WeakRef& other) {
-		return wrapper == other.wrapper;
+		return proxy == other.proxy;
 	}
 
 private:
-	T* wrapper = nullptr;
+	T* proxy = nullptr;
 	WeakObject* weakObject = nullptr;
 };
 
@@ -439,10 +439,10 @@ struct GetterProxy : Proxy<Base> {
 /** Behaves like a const variable but wraps a getter function.
 Zero overhead: 0 bytes, compiles to C function calls.
 Example:
-	GETTER_PROXY(AnimalWrapper, Animal, legs, int);
+	GETTER_PROXY(AnimalProxy, Animal, legs, int);
 
 Usage:
-	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
+	int legs = animalProxy->legs; // Calls Animal_legs_get(animal);
 */
 #define GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
@@ -490,11 +490,11 @@ struct AccessorProxy : GetterProxy<Base> {
 
 /** Behaves like a mutable variable but wraps getter/setter functions.
 Example:
-	ACCESSOR_PROXY(AnimalWrapper, Animal, legs, int);
+	ACCESSOR_PROXY(AnimalProxy, Animal, legs, int);
 
 Usage:
-	int legs = animalWrapper->legs; // Calls Animal_legs_get(animal);
-	animalWrapper->legs = 4; // Calls Animal_legs_set(animal, 3);
+	int legs = animalProxy->legs; // Calls Animal_legs_get(animal);
+	animalProxy->legs = 4; // Calls Animal_legs_set(animal, 3);
 */
 #define ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
 	ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
@@ -610,11 +610,11 @@ struct ArrayGetterProxy : Proxy<Base> {
 PROPS should be plural since C++ arrays are typically plural.
 
 Example:
-	ARRAY_GETTER_PROXY(AnimalWrapper, children, Animal, child, Object*);
+	ARRAY_GETTER_PROXY(AnimalProxy, children, Animal, child, Object*);
 
 Usage:
-	size_t childrenSize = animalWrapper->children.size(); // Calls Animal_child_count_get(animal);
-	Object* child = animalWrapper->children[index]; // Calls Animal_child_get(animal, index);
+	size_t childrenSize = animalProxy->children.size(); // Calls Animal_child_count_get(animal);
+	Object* child = animalProxy->children[index]; // Calls Animal_child_get(animal, index);
 */
 #define ARRAY_GETTER_PROXY(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
 	ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, { \
@@ -736,11 +736,11 @@ struct ArrayAccessorProxy : Proxy<Base> {
 PROPS should be plural since C++ arrays are typically plural.
 
 Example:
-	ARRAY_ACCESSOR_PROXY(AnimalWrapper, children, Animal, child, Object*);
+	ARRAY_ACCESSOR_PROXY(AnimalProxy, children, Animal, child, Object*);
 
 Usage:
 	// Everything in ARRAY_GETTER_PROXY, plus
-	animalWrapper->children[index] = child; // Calls Animal_child_set(animal, index, child);
+	animalProxy->children[index] = child; // Calls Animal_child_set(animal, index, child);
 */
 #define ARRAY_ACCESSOR_PROXY(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
 	ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROPS, PROP, TYPE, { \

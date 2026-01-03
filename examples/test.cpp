@@ -69,7 +69,7 @@ int main() {
 
 	{
 		// Only one proxy object is allowed per context (language or plugin), so use castOrCreate to guarantee this.
-		cpp::Dog* cppDog = ObjectWrapper_castOrCreate<cpp::Dog>(dog);
+		cpp::Dog* cppDog = ObjectProxy::getOrCreate<cpp::Dog>(dog);
 		// Proxies don't increase the Object's reference count
 		assert(GET(dog, Object, refs) == 1);
 		cppDog->speak();

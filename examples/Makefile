@@ -20,7 +20,7 @@ all: test
 run: test
 	time ./$^
 
-test: Animal.c.o ../src/Object.cpp.o ../src/WeakObject.c.o ../src/ObjectWrapper.cpp.o test.cpp.o
+test: Animal.c.o ../src/Object.cpp.o ../src/WeakObject.c.o ../src/ObjectProxies.cpp.o test.cpp.o
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 %.cpp.o: %.cpp

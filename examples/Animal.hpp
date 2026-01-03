@@ -1,17 +1,17 @@
 #pragma once
 
 #include <stdio.h>
-#include <Object/ObjectWrapper.hpp>
+#include <Object/ObjectProxy.hpp>
 #include "Animal.h"
 
 
 namespace cpp {
 
 
-struct Animal : ObjectWrapper {
+struct Animal : ObjectProxy {
 	Animal() : Animal(Animal_create(), true) {}
 
-	Animal(Object* self, bool original = false) : ObjectWrapper(self, original) {
+	Animal(Object* self, bool original = false) : ObjectProxy(self, original) {
 		if (original) {
 			BIND_METHOD_CONST(Animal, Animal, speak, (), {
 				that->speak();
@@ -55,14 +55,10 @@ struct Dog : Animal {
 	}
 
 	ACCESSOR_PROXY(Dog, Dog, name, const char*);
-
-	GETTER_PROXY_CUSTOM(Dog, that, Dog*, {
-		return ObjectWrapper_castOrCreate<Dog>(self);
-	});
 };
 
 
-/** Example of extending a C++ wrapper class without defining an Object class. */
+/** Example of extending a C++ proxy class without defining an Object class. */
 struct Poodle : Dog {
 	~Poodle() {
 		printf("bye Poodle\n");
