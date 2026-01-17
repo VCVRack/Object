@@ -2,8 +2,10 @@
 
 #include "ObjectProxies.h"
 #include "WeakObject.h"
-#include <assert.h>
+#include <cassert>
+#include <cstdlib>
 #include <vector>
+#include <string>
 #include <type_traits>
 #include <iterator>
 #include <utility>
@@ -13,13 +15,14 @@
 
 A library using VCV Object can offer a C++ proxy API by writing an ObjectProxy subclass for each Object class and writing proxy virtual/non-virtual methods and accessors.
 
-Once defined, there are two ways to use an ObjectProxy subclass.
+Once an ObjectProxy subclass is written, there are two ways to use it.
 
-You can proxy an existing Object by calling `ObjectProxy::proxy<T>(object)` which calls the constructor `ObjectProxy(object)`.
-No reference is obtained, and the proxy is deleted when the Object is freed.
+You can *proxy* an existing Object by calling `ObjectProxy::getOrCreate<T>(object)` which calls the constructor `T(object)` if that type does not already exist.
+No reference is obtained to the Object, and the proxy is deleted when the Object is freed.
+Do not delete the ObjectProxy.
 You can obtain a reference with the Ref class.
 
-Or, you can subclass an ObjectProxy subclass and override its virtual methods.
+Or, you can *subclass* an ObjectProxy subclass and override its virtual methods.
 When instantiated, it creates and owns its Object until deleted.
 When the Object's methods are called (such as `Animal_speak()`), your overridden C++ methods are called.
 
@@ -463,10 +466,10 @@ struct AccessorProxy : GetterProxy<Base> {
 	AccessorProxy& operator-=(const T& t) { return *this = (T) *this - t; }
 	AccessorProxy& operator*=(const T& t) { return *this = (T) *this * t; }
 	AccessorProxy& operator/=(const T& t) { return *this = (T) *this / t; }
-	AccessorProxy& operator++() { return *this += 1; }
-	T operator++(int) { T tmp = *this; *this = tmp + 1; return tmp; }
-	AccessorProxy& operator--() { return *this -= 1; }
-	T operator--(int) { T tmp = *this; *this = tmp - 1; return tmp; }
+	AccessorProxy& operator++() { return *this += T(1); }
+	T operator++(int) { T tmp = *this; *this = tmp + T(1); return tmp; }
+	AccessorProxy& operator--() { return *this -= T(1); }
+	T operator--(int) { T tmp = *this; *this = tmp - T(1); return tmp; }
 };
 
 
@@ -504,44 +507,6 @@ Usage:
 	})
 
 
-template <typename Proxy>
-struct ArrayGetterProxyIterator {
-	Proxy& proxy;
-	size_t i;
-
-	using iterator_category = std::random_access_iterator_tag;
-	using value_type = typename Proxy::value_type;
-	using difference_type = std::ptrdiff_t;
-	using reference = value_type;
-	using pointer = value_type;
-
-	ArrayGetterProxyIterator(Proxy& proxy, size_t i) : proxy(proxy), i(i) {}
-
-	reference operator*() const { return proxy[i]; }
-	pointer operator->() const { return &proxy[i]; }
-
-	ArrayGetterProxyIterator& operator++() { ++i; return *this; }
-	ArrayGetterProxyIterator operator++(int) { ArrayGetterProxyIterator tmp = *this; ++i; return tmp; }
-	ArrayGetterProxyIterator& operator--() { --i; return *this; }
-	ArrayGetterProxyIterator operator--(int) { ArrayGetterProxyIterator tmp = *this; --i; return tmp; }
-
-	ArrayGetterProxyIterator& operator+=(difference_type n) { i += n; return *this; }
-	ArrayGetterProxyIterator& operator-=(difference_type n) { i -= n; return *this; }
-	ArrayGetterProxyIterator operator+(difference_type n) const { return ArrayGetterProxyIterator(proxy, i + n); }
-	ArrayGetterProxyIterator operator-(difference_type n) const { return ArrayGetterProxyIterator(proxy, i - n); }
-	difference_type operator-(const ArrayGetterProxyIterator& other) const { return i - other.i; }
-
-	value_type operator[](difference_type n) const { return proxy[i + n]; }
-
-	bool operator==(const ArrayGetterProxyIterator& other) const { return i == other.i; }
-	bool operator!=(const ArrayGetterProxyIterator& other) const { return !(*this == other); }
-	bool operator<(const ArrayGetterProxyIterator& other) const { return i < other.i; }
-	bool operator>(const ArrayGetterProxyIterator& other) const { return i > other.i; }
-	bool operator<=(const ArrayGetterProxyIterator& other) const { return i <= other.i; }
-	bool operator>=(const ArrayGetterProxyIterator& other) const { return i >= other.i; }
-};
-
-
 template <typename Base>
 struct ArrayGetterProxy : Proxy<Base> {
 	using value_type = decltype(std::declval<Base>().get(0));
@@ -565,22 +530,45 @@ struct ArrayGetterProxy : Proxy<Base> {
 		return v;
 	}
 
-	// Iterators
+	struct iterator {
+		const ArrayGetterProxy& proxy;
+		size_t i;
 
-	using iterator = ArrayGetterProxyIterator<const ArrayGetterProxy>;
+		using iterator_category = std::random_access_iterator_tag;
+		using value_type = ArrayGetterProxy::value_type;
+		using difference_type = std::ptrdiff_t;
+		using reference = value_type;
+		using pointer = value_type;
+
+		reference operator*() const { return proxy[i]; }
+		pointer operator->() const { return proxy[i]; }
+
+		iterator& operator++() { ++i; return *this; }
+		iterator operator++(int) { iterator tmp = *this; ++i; return tmp; }
+		iterator& operator--() { --i; return *this; }
+		iterator operator--(int) { iterator tmp = *this; --i; return tmp; }
+
+		iterator& operator+=(difference_type n) { i += n; return *this; }
+		iterator& operator-=(difference_type n) { i -= n; return *this; }
+		iterator operator+(difference_type n) const { return iterator{proxy, i + n}; }
+		iterator operator-(difference_type n) const { return iterator{proxy, i - n}; }
+		difference_type operator-(const iterator& other) const { return i - other.i; }
+
+		reference operator[](difference_type n) const { return proxy[i + n]; }
+
+		bool operator==(const iterator& other) const { return i == other.i; }
+		bool operator!=(const iterator& other) const { return i != other.i; }
+		bool operator<(const iterator& other) const { return i < other.i; }
+		bool operator>(const iterator& other) const { return i > other.i; }
+		bool operator<=(const iterator& other) const { return i <= other.i; }
+		bool operator>=(const iterator& other) const { return i >= other.i; }
+	};
 	using const_iterator = iterator;
 
-	iterator begin() { return iterator(*this, 0); }
-	const_iterator begin() const { return const_iterator(*this, 0); }
-
-	iterator end() { return iterator(*this, size()); }
-	const_iterator end() const { return const_iterator(*this, size()); }
-
-	std::reverse_iterator<iterator> rbegin() { return std::reverse_iterator<iterator>(end()); }
-	std::reverse_iterator<const_iterator> rbegin() const { return std::reverse_iterator<const_iterator>(end()); }
-
-	std::reverse_iterator<iterator> rend() { return std::reverse_iterator<iterator>(begin()); }
-	std::reverse_iterator<const_iterator> rend() const { return std::reverse_iterator<const_iterator>(begin()); }
+	iterator begin() const { return iterator{*this, 0}; }
+	iterator end() const { return iterator{*this, size()}; }
+	std::reverse_iterator<iterator> rbegin() const { return std::reverse_iterator<iterator>(end()); }
+	std::reverse_iterator<iterator> rend() const { return std::reverse_iterator<iterator>(begin()); }
 };
 
 
@@ -622,21 +610,6 @@ Usage:
 	}, { \
 		return GET(self, CLASS, PROP, index); \
 	})
-
-
-template <typename Proxy>
-struct ArrayAccessorProxyIterator : ArrayGetterProxyIterator<Proxy> {
-	using Base = ArrayGetterProxyIterator<Proxy>;
-	using value_type = typename Base::value_type;
-	using difference_type = typename Base::difference_type;
-	using reference = value_type;
-	using pointer = value_type*;
-	using Base::Base;
-
-	reference operator*() const { return Base::proxy[Base::i]; }
-	pointer operator->() const { return &Base::proxy[Base::i]; }
-	reference operator[](difference_type n) const { return Base::proxy[Base::i + n]; }
-};
 
 
 template <typename Base>
@@ -698,15 +671,74 @@ struct ArrayAccessorProxy : Proxy<Base> {
 		resize(size() - 1);
 	}
 
-	// Iterators
+	struct iterator {
+		ArrayAccessorProxy& proxy;
+		size_t i;
 
-	using iterator = ArrayAccessorProxyIterator<ArrayAccessorProxy>;
-	using const_iterator = ArrayAccessorProxyIterator<const ArrayAccessorProxy>;
+		using iterator_category = std::random_access_iterator_tag;
+		using value_type = ElementAccessor;
+		using difference_type = std::ptrdiff_t;
+		using reference = value_type;
+		using pointer = value_type*;
 
-	iterator begin() { return iterator(*this, 0); }
-	const_iterator begin() const { return const_iterator(*this, 0); }
-	iterator end() { return iterator(*this, size()); }
-	const_iterator end() const { return const_iterator(*this, size()); }
+		reference operator*() const { return proxy[i]; }
+		reference operator[](difference_type n) const { return proxy[i + n]; }
+
+		iterator& operator++() { ++i; return *this; }
+		iterator operator++(int) { iterator tmp = *this; ++i; return tmp; }
+		iterator& operator--() { --i; return *this; }
+		iterator operator--(int) { iterator tmp = *this; --i; return tmp; }
+
+		iterator& operator+=(difference_type n) { i += n; return *this; }
+		iterator& operator-=(difference_type n) { i -= n; return *this; }
+		iterator operator+(difference_type n) const { return iterator{proxy, i + n}; }
+		iterator operator-(difference_type n) const { return iterator{proxy, i - n}; }
+		difference_type operator-(const iterator& other) const { return i - other.i; }
+
+		bool operator==(const iterator& other) const { return i == other.i; }
+		bool operator!=(const iterator& other) const { return i != other.i; }
+		bool operator<(const iterator& other) const { return i < other.i; }
+		bool operator>(const iterator& other) const { return i > other.i; }
+		bool operator<=(const iterator& other) const { return i <= other.i; }
+		bool operator>=(const iterator& other) const { return i >= other.i; }
+	};
+
+	struct const_iterator {
+		const ArrayAccessorProxy& proxy;
+		size_t i;
+
+		using iterator_category = std::random_access_iterator_tag;
+		using value_type = T;
+		using difference_type = std::ptrdiff_t;
+		using reference = value_type;
+		using pointer = value_type;
+
+		reference operator*() const { return proxy[i]; }
+		reference operator[](difference_type n) const { return proxy[i + n]; }
+
+		const_iterator& operator++() { ++i; return *this; }
+		const_iterator operator++(int) { const_iterator tmp = *this; ++i; return tmp; }
+		const_iterator& operator--() { --i; return *this; }
+		const_iterator operator--(int) { const_iterator tmp = *this; --i; return tmp; }
+
+		const_iterator& operator+=(difference_type n) { i += n; return *this; }
+		const_iterator& operator-=(difference_type n) { i -= n; return *this; }
+		const_iterator operator+(difference_type n) const { return const_iterator{proxy, i + n}; }
+		const_iterator operator-(difference_type n) const { return const_iterator{proxy, i - n}; }
+		difference_type operator-(const const_iterator& other) const { return i - other.i; }
+
+		bool operator==(const const_iterator& other) const { return i == other.i; }
+		bool operator!=(const const_iterator& other) const { return i != other.i; }
+		bool operator<(const const_iterator& other) const { return i < other.i; }
+		bool operator>(const const_iterator& other) const { return i > other.i; }
+		bool operator<=(const const_iterator& other) const { return i <= other.i; }
+		bool operator>=(const const_iterator& other) const { return i >= other.i; }
+	};
+
+	iterator begin() { return iterator{*this, 0}; }
+	const_iterator begin() const { return const_iterator{*this, 0}; }
+	iterator end() { return iterator{*this, size()}; }
+	const_iterator end() const { return const_iterator{*this, size()}; }
 	std::reverse_iterator<iterator> rbegin() { return std::reverse_iterator<iterator>(end()); }
 	std::reverse_iterator<const_iterator> rbegin() const { return std::reverse_iterator<const_iterator>(end()); }
 	std::reverse_iterator<iterator> rend() { return std::reverse_iterator<iterator>(begin()); }
@@ -779,4 +811,78 @@ Usage:
 		return GET(self, CLASS, PROP, index); \
 	}, { \
 		SET(self, CLASS, PROP, index, PROP); \
+	})
+
+
+template <typename Base>
+struct StringGetterProxy : GetterProxy<Base> {
+	size_t size() const { return Base::get().size(); }
+	size_t length() const { return Base::get().length(); }
+	bool empty() const { return Base::get().empty(); }
+
+	friend std::string operator+(const StringGetterProxy& a, const std::string& b) { return a.get() + b; }
+	friend std::string operator+(const std::string& a, const StringGetterProxy& b) { return a + b.get(); }
+	friend bool operator==(const StringGetterProxy& a, const std::string& b) { return a.get() == b; }
+	friend bool operator==(const std::string& a, const StringGetterProxy& b) { return a == b.get(); }
+	friend bool operator!=(const StringGetterProxy& a, const std::string& b) { return a.get() != b; }
+	friend bool operator!=(const std::string& a, const StringGetterProxy& b) { return a != b.get(); }
+};
+
+
+#define STRING_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, GETTER) \
+	struct Proxy_##PROP { \
+		PROXY_METHODS(CPPCLASS, PROP) \
+		GETTER_PROXY_METHODS(std::string, GETTER) \
+	}; \
+	[[no_unique_address]] \
+	const StringGetterProxy<Proxy_##PROP> PROP
+
+
+/** Behaves like a `const std::string` member but proxies a `char*` getter function where the caller must free(). */
+#define STRING_GETTER_PROXY(CPPCLASS, CLASS, PROP) \
+	STRING_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, { \
+		char* c = GET(self, CLASS, PROP); \
+		if (!c) return std::string(); \
+		std::string s = c; \
+		free(c); \
+		return s; \
+	})
+
+
+template <typename Base>
+struct StringAccessorProxy : AccessorProxy<Base> {
+	using AccessorProxy<Base>::operator=;
+
+	size_t size() const { return Base::get().size(); }
+	size_t length() const { return Base::get().length(); }
+	bool empty() const { return Base::get().empty(); }
+
+	friend std::string operator+(const StringAccessorProxy& a, const std::string& b) { return a.get() + b; }
+	friend std::string operator+(const std::string& a, const StringAccessorProxy& b) { return a + b.get(); }
+	friend bool operator==(const StringAccessorProxy& a, const std::string& b) { return a.get() == b; }
+	friend bool operator==(const std::string& a, const StringAccessorProxy& b) { return a == b.get(); }
+	friend bool operator!=(const StringAccessorProxy& a, const std::string& b) { return a.get() != b; }
+	friend bool operator!=(const std::string& a, const StringAccessorProxy& b) { return a != b.get(); }
+};
+
+
+#define STRING_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, GETTER, SETTER) \
+	struct Proxy_##PROP { \
+		PROXY_METHODS(CPPCLASS, PROP) \
+		ACCESSOR_PROXY_METHODS(PROP, std::string, GETTER, SETTER) \
+	}; \
+	[[no_unique_address]] \
+	StringAccessorProxy<Proxy_##PROP> PROP
+
+
+/** Behaves like a `std::string` member but proxies a `char*` getter function where the caller must free(), and a `const char*` setter function where the setter copies the string. */
+#define STRING_ACCESSOR_PROXY(CPPCLASS, CLASS, PROP) \
+	STRING_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, { \
+		char* c = GET(self, CLASS, PROP); \
+		if (!c) return std::string(); \
+		std::string s = c; \
+		free(c); \
+		return s; \
+	}, { \
+		SET(self, CLASS, PROP, PROP.c_str()); \
 	})

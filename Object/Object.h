@@ -593,6 +593,9 @@ Call macros
 	CALL_SUPER(SELF, SUPERCLASS, CLASS, PROP##_set __VA_OPT__(,) __VA_ARGS__)
 
 
+#define CLASS_CHECK(SELF, CLASS, DATA) Object_class_check(SELF, &CLASS##_class, (void**) &DATA)
+
+
 /**************************************
 Runtime symbols
 */
