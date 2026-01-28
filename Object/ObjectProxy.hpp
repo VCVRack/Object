@@ -15,52 +15,60 @@
 
 A library using VCV Object can offer a C++ proxy API by writing an ObjectProxy subclass for each Object class and writing proxy virtual/non-virtual methods and accessors.
 
-Once an ObjectProxy subclass is written, there are two ways to use it.
+Once an ObjectProxy subclass is defined, there are two ways to use it.
 
-You can *proxy* an existing Object by calling `ObjectProxy::getOrCreate<T>(object)` which calls the constructor `T(object)` if that type does not already exist.
-No reference is obtained to the Object, and the proxy is deleted when the Object is freed.
-Do not delete the ObjectProxy.
-You can obtain a reference with the Ref class.
+## Non-bound
 
-Or, you can *subclass* an ObjectProxy subclass and override its virtual methods.
-When instantiated, it creates and owns its Object until deleted.
-When the Object's methods are called (such as `Animal_speak()`), your overridden C++ methods are called.
+You can obtain an ObjectProxy from an existing Object by calling `ObjectProxy::of<T>(object)`.
+This calls the constructor `T(Object)` unless an ObjectProxy of type T is cached.
+The ObjectProxy does not own the Object (unless you call `adopt()`), and the ObjectProxy is deleted when the Object is freed.
+You do not need to delete the ObjectProxy, but it is safe to do so.
+
+## Bound
+
+Or, you can create an ObjectProxy which creates, owns, and "binds" an Object, which means that it overrides all of Object's virtual methods with its own C++ virtual methods.
+When the Object's methods are called (such as `Animal_speak()`), your overridden C++ methods (such as `Animal::speak()`) are called.
 
 See Animal.hpp for an example C++ class that wraps an Animal object.
 */
 struct ObjectProxy {
-	/** Owned if `original` is true. */
 	Object* const self;
-	const bool original;
+	/** True if this proxy bound its virtual methods to the Object. */
+	const bool bound;
+	/** True if this proxy owns the Object and will release it upon destruction. */
+	bool owns;
 
-	/** Proxies an Object to a subclass of ObjectProxy `T`.
-	Returns a cached proxy if exists and cast-able to T.
-	Otherwise, creates a new T instance and uses that for future proxies.
+	/** Returns a proxy of type T for the given Object.
+	If the Object has a bound C++ proxy that can be cast to T, returns that.
+	Otherwise, returns a cached proxy if one exists for type T.
+	Otherwise, creates a new T instance and registers it with &typeid(T).
 	*/
 	template <class T>
-	static T* getOrCreate(Object* self) {
+	static T* of(Object* self) {
+		static_assert(std::is_base_of<ObjectProxy, T>::value, "T must be a subclass of ObjectProxy");
 		if (!self)
 			return NULL;
-		T* proxy = get<T>(self);
+		// Check if the Object has a bound C++ proxy that can cast to T
+		const void* boundType = NULL;
+		void* boundProxy = ObjectProxies_bound_get(self, &boundType);
+		if (boundProxy && boundType == &typeid(ObjectProxy)) {
+			T* boundT = dynamic_cast<T*>(static_cast<ObjectProxy*>(boundProxy));
+			if (boundT)
+				return boundT;
+		}
+		// Look up cached proxy by type
+		T* proxy = static_cast<T*>(ObjectProxies_get(self, &typeid(T)));
 		if (proxy)
 			return proxy;
-		// ObjectProxy either doesn't exist or cannot be down-cast to T.
-		// Create new ObjectProxy, which will override this one.
+		// Create new proxy
 		proxy = new T(self);
+		ObjectProxies_add(self, proxy, &typeid(T), destructor);
 		return proxy;
 	}
 
-	/** Returns the ObjectProxy associated with an Object. */
 	template <class T>
-	static T* get(Object* self) {
-		ObjectProxy* proxy = reinterpret_cast<ObjectProxy*>(ObjectProxies_get(self, &typeid(ObjectProxy)));
-		return dynamic_cast<T*>(proxy);
-	}
-
-	template <class T>
-	static const T* get(const Object* self) {
-		const ObjectProxy* proxy = reinterpret_cast<const ObjectProxy*>(ObjectProxies_get(self, &typeid(ObjectProxy)));
-		return dynamic_cast<const T*>(proxy);
+	static const T* of(const Object* self) {
+		return of<T>(const_cast<Object*>(self));
 	}
 
 	/** Constructs an ObjectProxy with a new Object.
@@ -70,11 +78,12 @@ struct ObjectProxy {
 
 protected:
 	/** Constructs an ObjectProxy with an existing Object.
-	If `original` is true, use BIND_* macros to override the Object's virtual methods with C++ virtual methods.
+	If `bind` is true, use BIND_* macros to override the Object's virtual methods with C++ virtual methods.
 	*/
-	ObjectProxy(Object* self, bool original = false) : self(self), original(original) {
+	ObjectProxy(Object* self, bool bind = false) : self(self), bound(bind), owns(bind) {
 		ObjectProxies_specialize(self);
-		ObjectProxies_add(self, this, &typeid(ObjectProxy), destructor);
+		if (bound)
+			ObjectProxies_bound_set(self, (void*) this, &typeid(ObjectProxy));
 	}
 
 public:
@@ -83,11 +92,21 @@ public:
 	ObjectProxy& operator=(const ObjectProxy&) = delete;
 
 	virtual ~ObjectProxy() {
-		// Remove Object -> ObjectProxy association
-		ObjectProxies_remove(self, this);
-		// Proxy wrappers don't own a reference
-		if (original)
+		if (owns)
 			Object_release(self);
+		else
+			ObjectProxies_remove(self, this);
+	}
+
+	/** Takes ownership of the Object.
+	After adopting, this proxy will release the Object when destroyed.
+	Does not obtain a reference to Object with Object_obtain().
+	*/
+	void adopt() {
+		if (owns)
+			return;
+		owns = true;
+		ObjectProxies_remove(self, this);
 	}
 
 	/** Gets the Object, preserving constness. */
@@ -111,7 +130,7 @@ public:
 	}
 
 	static void destructor(void* proxy) {
-		delete reinterpret_cast<ObjectProxy*>(proxy);
+		delete static_cast<ObjectProxy*>(proxy);
 	}
 };
 
@@ -126,15 +145,13 @@ Example:
 */
 #define BIND_METHOD(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
 	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](Object* self COMMA_EXPAND ARGTYPES) { \
-		CPPCLASS* that = ObjectProxy::get<CPPCLASS>(self); \
-		assert(that); \
+		CPPCLASS* that = static_cast<CPPCLASS*>(ObjectProxies_bound_get(self, NULL)); \
 		CODE \
 	}))
 
 #define BIND_METHOD_CONST(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
 	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](const Object* self COMMA_EXPAND ARGTYPES) { \
-		const CPPCLASS* that = ObjectProxy::get<CPPCLASS>(self); \
-		assert(that); \
+		const CPPCLASS* that = static_cast<CPPCLASS*>(ObjectProxies_bound_get(self, NULL)); \
 		CODE \
 	}))
 
@@ -147,6 +164,21 @@ Example:
 #define BIND_ACCESSOR(CPPCLASS, CLASS, PROP, TYPE, GETTER, SETTER) \
 	BIND_GETTER(CPPCLASS, CLASS, PROP, GETTER); \
 	BIND_SETTER(CPPCLASS, CLASS, PROP, TYPE, SETTER)
+
+
+/** Calls a virtual method, using direct call if bound or dispatch call if not.
+Use in ObjectProxy subclass virtual methods.
+*/
+#define PROXY_CALL(CLASS, BASE_CLASS, METHOD, ...) \
+	(bound ? CLASS##_##METHOD##_mdirect : BASE_CLASS##_##METHOD)(self, ##__VA_ARGS__)
+
+/** Gets a virtual property, using direct call if bound or dispatch call if not. */
+#define PROXY_GET(CLASS, BASE_CLASS, PROP, ...) \
+	(bound ? CLASS##_##PROP##_get_mdirect : BASE_CLASS##_##PROP##_get)(self, ##__VA_ARGS__)
+
+/** Sets a virtual property, using direct call if bound or dispatch call if not. */
+#define PROXY_SET(CLASS, BASE_CLASS, PROP, ...) \
+	(bound ? CLASS##_##PROP##_set_mdirect : BASE_CLASS##_##PROP##_set)(self, ##__VA_ARGS__)
 
 
 /** Reference counter for an ObjectProxy subclass.
@@ -176,9 +208,9 @@ struct Ref {
 	// In-place constructor
 	template <typename... Args>
 	explicit Ref(std::in_place_t, Args&&... args) : proxy(new T(std::forward<Args>(args)...)) {
-		// If constructing an original proxy, we already hold the sole reference.
-		// If constructing a proxy proxy from an existing Object, obtain a reference.
-		if (!proxy->original)
+		// If constructing a bound proxy, we already hold the sole reference.
+		// If constructing a proxy from an existing Object, obtain a reference.
+		if (!proxy->bound)
 			obtain();
 	}
 #endif
@@ -397,8 +429,11 @@ https://radek.io/posts/magical-container_of-macro/
 
 
 #define PROXY_METHODS(CPPCLASS, PROP) \
+	CPPCLASS* this_get() const { \
+		return CONTAINER_OF(this, CPPCLASS, PROP); \
+	} \
 	Object* self_get() const { \
-		return CONTAINER_OF(this, CPPCLASS, PROP)->self_get();	\
+		return this_get()->self_get(); \
 	}
 
 

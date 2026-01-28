@@ -15,6 +15,8 @@ struct ObjectProxies {
 	std::vector<ProxyData> proxies;
 	// type -> proxy
 	std::unordered_map<const void*, void*> proxiesByType;
+	void* boundProxy = NULL;
+	const void* boundType = NULL;
 };
 
 
@@ -22,11 +24,12 @@ DEFINE_CLASS(ObjectProxies, (), (), {
 	ObjectProxies* data = new ObjectProxies;
 	PUSH_CLASS(self, ObjectProxies, data);
 }, {
-	// Iterate, destroy, and erase proxies
-	// Note that while we delete proxies with the same type, get() will always return the last one, so we are safe to delete old ones first.
-	for (const ProxyData& wd : data->proxies) {
-		if (wd.destructor)
-			wd.destructor(wd.proxy);
+	// Destroy proxies in reverse order to allow re-entrant remove() calls
+	while (!data->proxies.empty()) {
+		ProxyData pd = data->proxies.back();
+		data->proxies.pop_back();
+		if (pd.destructor)
+			pd.destructor(pd.proxy);
 	}
 	delete data;
 })
@@ -64,4 +67,16 @@ DEFINE_METHOD_CONST(ObjectProxies, get, void*, (const void* type), NULL, {
 	if (it == data->proxiesByType.end())
 		return NULL;
 	return it->second;
+})
+
+
+DEFINE_METHOD_CONST(ObjectProxies, bound_get, void*, (const void** type), NULL, {
+	if (type)
+		*type = data->boundType;
+	return data->boundProxy;
+})
+
+DEFINE_METHOD(ObjectProxies, bound_set, void, (void* bound, const void* type), VOID, {
+	data->boundProxy = bound;
+	data->boundType = type;
 })
