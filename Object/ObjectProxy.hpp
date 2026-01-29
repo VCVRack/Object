@@ -92,21 +92,20 @@ public:
 	ObjectProxy& operator=(const ObjectProxy&) = delete;
 
 	virtual ~ObjectProxy() {
+		// If ObjectProxy is not associated with the Object, this does nothing.
+		ObjectProxies_remove(self, this);
 		if (owns)
 			Object_release(self);
-		else
-			ObjectProxies_remove(self, this);
 	}
 
-	/** Takes ownership of the Object.
+	/** Obtains ownership of the Object.
 	After adopting, this proxy will release the Object when destroyed.
-	Does not obtain a reference to Object with Object_obtain().
 	*/
 	void adopt() {
 		if (owns)
 			return;
 		owns = true;
-		ObjectProxies_remove(self, this);
+		Object_obtain(self);
 	}
 
 	/** Gets the Object, preserving constness. */
