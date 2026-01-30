@@ -41,39 +41,39 @@ Object* Object_create() {
 }
 
 
-void Object_obtain(Object* self) {
+void Object_obtain(const Object* self) {
 	if (!self)
 		return;
 	// This check isn't part of the thread-safety guarantee, but it protects against obtaining a reference within a finalize() or free() function.
 	if (self->refs == 0)
 		return;
 	// Increment reference count
-	++self->refs;
+	++const_cast<Object*>(self)->refs;
 }
 
 
-void Object_release(Object* self) {
+void Object_release(const Object* self) {
 	if (!self)
 		return;
 	// This check isn't part of the thread-safety guarantee, but it protects against releasing a reference within a finalize() or free() function.
 	if (self->refs == 0)
 		return;
 	// Decrement reference count
-	if (--self->refs)
+	if (--const_cast<Object*>(self)->refs)
 		return;
 	// Finalize classes in reverse order
 	for (auto it = self->classes.rbegin(); it != self->classes.rend(); it++) {
 		const Class* cls = *it;
 		if (cls->finalize)
-			cls->finalize(self);
+			cls->finalize(const_cast<Object*>(self));
 	}
 	// Free classes in reverse order
 	while (!self->classes.empty()) {
 		const Class* cls = self->classes.back();
 		if (cls->free)
-			cls->free(self);
-		self->classes.pop_back();
-		self->datas.erase(cls);
+			cls->free(const_cast<Object*>(self));
+		const_cast<Object*>(self)->classes.pop_back();
+		const_cast<Object*>(self)->datas.erase(cls);
 	}
 	assert(self->datas.empty());
 	// Free Object

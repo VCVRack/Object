@@ -642,7 +642,7 @@ Each reference must be released with Object_release() to prevent a memory leak.
 Thread-safe.
 Does nothing if self is NULL.
 */
-void Object_obtain(Object* self);
+void Object_obtain(const Object* self);
 
 
 /** Decrements the object's reference counter.
@@ -653,7 +653,7 @@ Calls finalize() for each class in reverse order of specialization, and then fre
 Thread-safe.
 Does nothing if self is NULL.
 */
-void Object_release(Object* self);
+void Object_release(const Object* self);
 
 
 /** Returns the number of shared references to the object.
