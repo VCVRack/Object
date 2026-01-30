@@ -453,6 +453,17 @@ struct GetterProxy : Proxy<Base> {
 	T operator->() const { return (T) *this; }
 	T operator+() const { return +(T) *this; }
 	T operator-() const { return -(T) *this; }
+
+	template <typename U = T, std::enable_if_t<!std::is_same_v<U, bool>, int> = 0>
+	explicit operator bool() const { return static_cast<bool>((T) *this); }
+
+	template <typename U = T, std::enable_if_t<!std::is_same_v<U, bool>, int> = 0>
+	bool operator!() const { return !static_cast<bool>((T) *this); }
+
+	friend bool operator==(const GetterProxy& a, const T& b) { return a.get() == b; }
+	friend bool operator==(const T& a, const GetterProxy& b) { return a == b.get(); }
+	friend bool operator!=(const GetterProxy& a, const T& b) { return a.get() != b; }
+	friend bool operator!=(const T& a, const GetterProxy& b) { return a != b.get(); }
 };
 
 
