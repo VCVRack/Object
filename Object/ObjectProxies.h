@@ -29,4 +29,4 @@ METHOD_CONST(ObjectProxies, bound_get, void*, (const void** type));
 /** Sets the bound proxy pointer and its type ID.
 For the C++ ObjectProxy, you may use `&typeid(ObjectProxy)` as the type, since ObjectProxy::of() uses dynamic_cast on the bound proxy pointer.
 */
-METHOD(ObjectProxies, bound_set, void, (void* bound, const void* type));
+METHOD(ObjectProxies, bound_set, void, (void* proxy, const void* type, ObjectProxies_destructor_f* destructor));

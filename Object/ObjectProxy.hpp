@@ -82,8 +82,9 @@ protected:
 	*/
 	ObjectProxy(Object* self, bool bind = false) : self(self), bound(bind), owns(bind) {
 		ObjectProxies_specialize(self);
-		if (bound)
-			ObjectProxies_bound_set(self, (void*) this, &typeid(ObjectProxy));
+		if (bound) {
+			ObjectProxies_bound_set(self, (void*) this, &typeid(ObjectProxy), destructor);
+		}
 	}
 
 public:
@@ -92,10 +93,17 @@ public:
 	ObjectProxy& operator=(const ObjectProxy&) = delete;
 
 	virtual ~ObjectProxy() {
-		// If ObjectProxy is not associated with the Object, this does nothing.
-		ObjectProxies_remove(self, this);
-		if (owns)
+		// Remove proxy from ObjectProxies
+		if (bound) {
+			ObjectProxies_bound_set(self, NULL, NULL, NULL);
+		}
+		else {
+			ObjectProxies_remove(self, this);
+		}
+		// Release Object if the proxy owns it
+		if (owns) {
 			Object_release(self);
+		}
 	}
 
 	/** Obtains ownership of the Object.
@@ -128,8 +136,11 @@ public:
 		return proxy->self;
 	}
 
-	static void destructor(void* proxy) {
-		delete static_cast<ObjectProxy*>(proxy);
+	static void destructor(void* p) {
+		ObjectProxy* proxy = static_cast<ObjectProxy*>(p);
+		// Object is being freed, so don't allow proxy to release Object
+		proxy->owns = false;
+		delete proxy;
 	}
 };
 

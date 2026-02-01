@@ -5,18 +5,17 @@
 
 
 struct ProxyData {
-	void* proxy;
-	const void* type;
-	ObjectProxies_destructor_f* destructor;
+	void* proxy = NULL;
+	const void* type = NULL;
+	ObjectProxies_destructor_f* destructor = NULL;
 };
 
 
 struct ObjectProxies {
+	ProxyData boundProxy;
 	std::vector<ProxyData> proxies;
 	// type -> proxy
 	std::unordered_map<const void*, void*> proxiesByType;
-	void* boundProxy = NULL;
-	const void* boundType = NULL;
 };
 
 
@@ -26,10 +25,17 @@ DEFINE_CLASS(ObjectProxies, (), (), {
 }, {
 	// Destroy proxies in reverse order to allow re-entrant remove() calls
 	while (!data->proxies.empty()) {
-		ProxyData pd = data->proxies.back();
+		ProxyData p = data->proxies.back();
+		// Remove proxy before calling destructor
 		data->proxies.pop_back();
-		if (pd.destructor)
-			pd.destructor(pd.proxy);
+		if (p.destructor) {
+			p.destructor(p.proxy);
+		}
+	}
+	// Destroy bound proxy if exists
+	ProxyData& bp = data->boundProxy;
+	if (bp.proxy && bp.destructor) {
+		bp.destructor(bp.proxy);
 	}
 	delete data;
 })
@@ -71,12 +77,15 @@ DEFINE_METHOD_CONST(ObjectProxies, get, void*, (const void* type), NULL, {
 
 
 DEFINE_METHOD_CONST(ObjectProxies, bound_get, void*, (const void** type), NULL, {
+	ProxyData& bp = data->boundProxy;
 	if (type)
-		*type = data->boundType;
-	return data->boundProxy;
+		*type = bp.type;
+	return bp.proxy;
 })
 
-DEFINE_METHOD(ObjectProxies, bound_set, void, (void* bound, const void* type), VOID, {
-	data->boundProxy = bound;
-	data->boundType = type;
+DEFINE_METHOD(ObjectProxies, bound_set, void, (void* proxy, const void* type, ObjectProxies_destructor_f* destructor), VOID, {
+	ProxyData& bp = data->boundProxy;
+	bp.proxy = proxy;
+	bp.type = type;
+	bp.destructor = destructor;
 })
