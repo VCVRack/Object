@@ -471,10 +471,14 @@ struct GetterProxy : Proxy<Base> {
 	template <typename U = T, std::enable_if_t<!std::is_same_v<U, bool>, int> = 0>
 	bool operator!() const { return !static_cast<bool>((T) *this); }
 
-	friend bool operator==(const GetterProxy& a, const T& b) { return a.get() == b; }
-	friend bool operator==(const T& a, const GetterProxy& b) { return a == b.get(); }
-	friend bool operator!=(const GetterProxy& a, const T& b) { return a.get() != b; }
-	friend bool operator!=(const T& a, const GetterProxy& b) { return a != b.get(); }
+	template <typename U = T, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator==(const GetterProxy& a, const U& b) { return a.get() == b; }
+	template <typename U = T, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator==(const U& a, const GetterProxy& b) { return a == b.get(); }
+	template <typename U = T, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator!=(const GetterProxy& a, const U& b) { return a.get() != b; }
+	template <typename U = T, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator!=(const U& a, const GetterProxy& b) { return a != b.get(); }
 };
 
 
