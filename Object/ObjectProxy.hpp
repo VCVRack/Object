@@ -95,7 +95,8 @@ public:
 	virtual ~ObjectProxy() {
 		// Remove proxy from ObjectProxies
 		if (bound) {
-			ObjectProxies_bound_set(self, NULL, NULL, NULL);
+			// Clear bound proxy destructor, so Object_release below doesn't call ObjectProxy destructor again
+			ObjectProxies_bound_set(self, this, &typeid(ObjectProxy), NULL);
 		}
 		else {
 			ObjectProxies_remove(self, this);
@@ -138,7 +139,7 @@ public:
 
 	static void destructor(void* p) {
 		ObjectProxy* proxy = static_cast<ObjectProxy*>(p);
-		// Object is being freed, so don't allow proxy to release Object
+		// Release ObjectProxy's ownership of Object so it doesn't release it again in ~ObjectProxy().
 		proxy->owns = false;
 		delete proxy;
 	}
