@@ -1,6 +1,6 @@
 # [![](https://vcvrack.com/port.svg)](https://vcvrack.com/) VCV's Object system
 
-*A flexible cross-language [ABI](https://en.wikipedia.org/wiki/Application_binary_interface)-stable [OOP](https://en.wikipedia.org/wiki/Object-oriented_programming) C header*
+*A flexible cross-language [ABI](https://en.wikipedia.org/wiki/Application_binary_interface)-stable [OOP](https://en.wikipedia.org/wiki/Object-oriented_programming) C library*
 
 
 ## Features and usage
@@ -120,19 +120,11 @@ Any language/environment with a C FFI interface can call these functions to inte
 The Object struct and each class's data structs are private/opaque and must not be accessed except by these functions.
 
 
-## Performance
-
-Each Object is a map/dictionary of pointers to private data structs.
-This makes *VCV Object* more flexible, ABI-stable, and language-compatible than C++ classes, but it must perform more function calls and pointer dereferences than C++.
-
-Rough benchmarking suggests that a virtual method call is about 5x slower than on C++.
-We recommend using this library for applications where flexibility is important but navigating the OOP hierarchy is not a bottleneck, such as UI widgets or plugin hosting.
-
-
 ## In this repo
 
 - [Object.h](Object/Object.h) contains macros to declare and define your classes and methods, as well as runtime function declarations.
 - [Object.cpp](src/Object.cpp) is a possible C++ implementation of the (tiny) runtime. Feel free to port this to C, Go, etc if you have a favorite map/dictionary implementation.
+- [WeakObject.h](Object/WeakObject.h) defines a handle that holds a weak reference to an Object.
 - [examples/](examples/) contains example programs that demonstrate usage and features.
 
 

@@ -1,17 +1,16 @@
+/*
+Reference implementation of Object runtime code using FlatMap.
+
+Feel free to rewrite this in other languages that can export C symbols.
+*/
+
 #include <cstdlib>
 #include <cassert>
 #include <cstdio>
-#include <unordered_map>
 #include <vector>
 #include <atomic>
 #include <Object/Object.h>
-
-
-/*
-Possible implementation of Object runtime code using the C++ std::map.
-
-Feel free to rewrite this in C if you have a fast map type.
-*/
+#include "FlatMap.hpp"
 
 
 /** Size of Class is part of the ABI. */
@@ -22,11 +21,11 @@ struct Object {
 	// Classes ordered by specialization
 	std::vector<const Class*> classes;
 	// Quick access to data per class
-	std::unordered_map<const Class*, void*> datas;
+	FlatMap<const Class*, void*> datas;
 	// Method overloads: dispatcher function pointer -> method pointer
-	std::unordered_map<void*, void*> methods;
+	FlatMap<void*, void*> methods;
 	// Super methods: method pointer -> method pointer that was overridden by it
-	std::unordered_map<void*, void*> supermethods;
+	FlatMap<void*, void*> supermethods;
 
 	// Number of shared references
 	std::atomic<size_t> refs;
@@ -73,9 +72,8 @@ void Object_release(const Object* self) {
 		if (cls->free)
 			cls->free(const_cast<Object*>(self));
 		const_cast<Object*>(self)->classes.pop_back();
-		const_cast<Object*>(self)->datas.erase(cls);
+		// For performance, we don't need to erase the self->datas element, since calling Object_class_check() for a derived class in a Base class's free() is undefined behavior.
 	}
-	assert(self->datas.empty());
 	// Free Object
 	delete self;
 }
@@ -92,11 +90,11 @@ void Object_class_push(Object* self, const Class* cls, void* data) {
 	if (!self)
 		return;
 	assert(cls);
-	// Set class data
-	auto result = self->datas.insert({cls, data});
 	// Return if class already existed
-	if (!result.second)
+	if (self->datas.find(cls))
 		return;
+	// Set class data
+	self->datas.insert(cls, data);
 	self->classes.push_back(cls);
 }
 
@@ -105,11 +103,11 @@ bool Object_class_check(const Object* self, const Class* cls, void** dataOut) {
 	// It is safe to not check cls, for performance
 	if (!self)
 		return false;
-	auto it = self->datas.find(cls);
-	if (it == self->datas.end())
+	void** data = self->datas.find(cls);
+	if (!data)
 		return false;
 	if (dataOut)
-		*dataOut = it->second;
+		*dataOut = *data;
 	return true;
 }
 
@@ -119,16 +117,19 @@ void Object_method_push(Object* self, void* dispatcher, void* method) {
 		return;
 	assert(dispatcher);
 	assert(method);
-	// Try to set method
-	auto result = self->methods.insert({dispatcher, method});
-	// If method already exists, replace and set supermethod
-	if (!result.second) {
-		void* supermethod = result.first->second;
+	// Check if method already exists
+	void** existing = self->methods.find(dispatcher);
+	if (existing) {
+		void* supermethod = *existing;
 		// We can't re-override the same method
 		assert(method != supermethod);
 		// Don't replace method's supermethod if already set
-		self->supermethods.insert({method, supermethod});
-		result.first->second = method;
+		if (!self->supermethods.find(method))
+			self->supermethods.insert(method, supermethod);
+		*existing = method;
+	}
+	else {
+		self->methods.insert(dispatcher, method);
 	}
 }
 
@@ -136,20 +137,20 @@ void Object_method_push(Object* self, void* dispatcher, void* method) {
 void* Object_method_get(const Object* self, void* dispatcher) {
 	if (!self)
 		return NULL;
-	auto it = self->methods.find(dispatcher);
-	if (it == self->methods.end())
+	void** method = self->methods.find(dispatcher);
+	if (!method)
 		return NULL;
-	return it->second;
+	return *method;
 }
 
 
 void* Object_supermethod_get(const Object* self, void* method) {
 	if (!self)
 		return NULL;
-	auto it = self->supermethods.find(method);
-	if (it == self->supermethods.end())
+	void** supermethod = self->supermethods.find(method);
+	if (!supermethod)
 		return NULL;
-	return it->second;
+	return *supermethod;
 }
 
 
