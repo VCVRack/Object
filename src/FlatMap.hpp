@@ -10,21 +10,29 @@ struct FlatMap {
 		V value;
 	};
 
-	Entry* table;
-	uint16_t capacity = 4;
-	uint16_t mask = 3;
-	uint16_t size = 0;
+	Entry* table = NULL;
+	uint16_t capacity;
+	uint16_t mask;
+	uint16_t size;
 
 	FlatMap() {
-		table = new Entry[capacity]();
+		clear();
 	}
 
 	~FlatMap() {
 		delete[] table;
 	}
 
-	uintptr_t hash(const K& key) const {
-		return (uintptr_t(key) * 0x9E3779B97F4A7C15ULL) & mask;
+	void clear() {
+		delete[] table;
+		capacity = 4;
+		mask = capacity - 1;
+		size = 0;
+		table = new Entry[capacity]();
+	}
+
+	uint64_t hash(const K& key) const {
+		return (uint64_t(key) * 0x9E3779B97F4A7C15ULL) & mask;
 	}
 
 	void rehash(uint16_t newCapacity) {

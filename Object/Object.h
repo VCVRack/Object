@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h> // for size_t
+#include <stdint.h> // for uint32_t
 #include <stdbool.h> // for bool, true, false
 
 
@@ -656,9 +657,38 @@ Does nothing if self is NULL.
 void Object_release(const Object* self);
 
 
-/** Returns the number of shared references to the object.
+/** Returns the number of strong references to the object.
 */
-size_t Object_refs_get(const Object* self);
+uint32_t Object_refs_get(const Object* self);
+
+
+/** Increments the object's weak reference counter.
+A weak reference does not prevent the object from being freed, but it keeps the object pointer valid so that Object_weak_lock() can be safely called.
+Each weak reference must be released with Object_weak_release().
+Thread-safe.
+Does nothing if self is NULL.
+*/
+void Object_weak_obtain(const Object* self);
+
+
+/** Decrements the object's weak reference counter.
+If no strong or weak references are left, this frees the object shell.
+Thread-safe.
+Does nothing if self is NULL.
+*/
+void Object_weak_release(const Object* self);
+
+
+/** Returns the number of weak references to the object.
+*/
+uint32_t Object_weak_refs_get(const Object* self);
+
+
+/** Attempts to obtain a strong reference from a weak reference.
+If successful, the caller must release the strong reference with Object_release().
+Thread-safe.
+*/
+bool Object_weak_lock(const Object* self);
 
 
 /** Assigns an object a class type with a data pointer.

@@ -5,6 +5,7 @@ Feel free to rewrite this in other languages that can export C symbols.
 */
 
 #include <cstdlib>
+#include <cstdint>
 #include <cassert>
 #include <cstdio>
 #include <vector>
@@ -27,15 +28,14 @@ struct Object {
 	// Super methods: method pointer -> method pointer that was overridden by it
 	FlatMap<void*, void*> supermethods;
 
-	// Number of shared references
-	std::atomic<size_t> refs;
+	// Packed reference counts: low 32 bits = strong refs, high 32 bits = weak refs
+	std::atomic<uint64_t> refs{1};
 };
 
 
 Object* Object_create() {
 	Object* self = new Object;
 	assert(self);
-	self->refs = 1;
 	return self;
 }
 
@@ -44,10 +44,11 @@ void Object_obtain(const Object* self) {
 	if (!self)
 		return;
 	// This check isn't part of the thread-safety guarantee, but it protects against obtaining a reference within a finalize() or free() function.
-	if (self->refs == 0)
+	uint64_t old = self->refs.load();
+	if ((old & 0xFFFFFFFF) == 0)
 		return;
-	// Increment reference count
-	++const_cast<Object*>(self)->refs;
+	// Increment strong reference count
+	const_cast<Object*>(self)->refs.fetch_add(1);
 }
 
 
@@ -55,10 +56,14 @@ void Object_release(const Object* self) {
 	if (!self)
 		return;
 	// This check isn't part of the thread-safety guarantee, but it protects against releasing a reference within a finalize() or free() function.
-	if (self->refs == 0)
+	uint64_t old = self->refs.load();
+	if ((old & 0xFFFFFFFF) == 0)
 		return;
-	// Decrement reference count
-	if (--const_cast<Object*>(self)->refs)
+	// Decrement strong reference count
+	old = const_cast<Object*>(self)->refs.fetch_sub(1);
+	uint32_t old_strong = old & 0xFFFFFFFF;
+	uint32_t old_weak = old >> 32;
+	if (old_strong != 1)
 		return;
 	// Finalize classes in reverse order
 	for (auto it = self->classes.rbegin(); it != self->classes.rend(); it++) {
@@ -74,15 +79,63 @@ void Object_release(const Object* self) {
 		const_cast<Object*>(self)->classes.pop_back();
 		// For performance, we don't need to erase the self->datas element, since calling Object_class_check() for a derived class in a Base class's free() is undefined behavior.
 	}
-	// Free Object
-	delete self;
+	// Clear all maps so weak reference holders get clean failures
+	const_cast<Object*>(self)->datas.clear();
+	const_cast<Object*>(self)->methods.clear();
+	const_cast<Object*>(self)->supermethods.clear();
+	// Free Object shell only if no weak references remain
+	if (old_weak == 0)
+		delete self;
 }
 
 
-size_t Object_refs_get(const Object* self) {
+uint32_t Object_refs_get(const Object* self) {
 	if (!self)
 		return 0;
-	return self->refs;
+	return self->refs.load() & 0xFFFFFFFF;
+}
+
+
+void Object_weak_obtain(const Object* self) {
+	if (!self)
+		return;
+	const_cast<Object*>(self)->refs.fetch_add(uint64_t(1) << 32);
+}
+
+
+void Object_weak_release(const Object* self) {
+	if (!self)
+		return;
+	uint64_t old = self->refs.load();
+	if ((old >> 32) == 0)
+		return;
+	// Decrement weak reference count
+	old = const_cast<Object*>(self)->refs.fetch_sub(uint64_t(1) << 32);
+	uint32_t old_strong = old & 0xFFFFFFFF;
+	uint32_t old_weak = old >> 32;
+	// Free Object shell if this was the last weak ref and strong refs are already gone
+	if (old_weak == 1 && old_strong == 0)
+		delete self;
+}
+
+
+uint32_t Object_weak_refs_get(const Object* self) {
+	if (!self)
+		return 0;
+	return self->refs.load() >> 32;
+}
+
+
+bool Object_weak_lock(const Object* self) {
+	if (!self)
+		return false;
+	// Atomically increment strong refs only if currently > 0
+	uint64_t old = self->refs.load();
+	while ((old & 0xFFFFFFFF) > 0) {
+		if (const_cast<Object*>(self)->refs.compare_exchange_weak(old, old + 1))
+			return true;
+	}
+	return false;
 }
 
 
@@ -164,7 +217,10 @@ char* Object_inspect(const Object* self) {
 	if (!s)
 		return NULL;
 
-	int size = snprintf(s + pos, capacity - pos, "Object(%p):", self);
+	uint64_t refs = self->refs.load();
+	uint32_t strong = refs & 0xFFFFFFFF;
+	uint32_t weak = refs >> 32;
+	int size = snprintf(s + pos, capacity - pos, "Object(%p)[%u,%u]:", self, strong, weak);
 	if (size < 0) {
 		free(s);
 		return NULL;

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ObjectProxies.h"
-#include "WeakObject.h"
 #include <cassert>
 #include <cstdlib>
 #include <vector>
@@ -312,28 +311,21 @@ struct WeakRef {
 
 	WeakRef() {}
 
-	WeakRef(T* proxy) {
-		this->proxy = proxy;
-		weakObject = proxy ? WeakObject_create(proxy->self) : nullptr;
+	WeakRef(T* proxy) : proxy(proxy), object(proxy ? proxy->self : nullptr) {
+		Object_weak_obtain(object);
 	}
 
-	WeakRef(const Ref<T>& other) {
-		proxy = other.get();
-		weakObject = proxy ? WeakObject_create(proxy->self) : nullptr;
+	WeakRef(const Ref<T>& other) : proxy(other.get()), object(proxy ? proxy->self : nullptr) {
+		Object_weak_obtain(object);
 	}
 
-	WeakRef(const WeakRef& other) {
-		proxy = other.proxy;
-		weakObject = other.weakObject;
-		if (weakObject)
-			WeakObject_obtain(weakObject);
+	WeakRef(const WeakRef& other) : proxy(other.proxy), object(other.object) {
+		Object_weak_obtain(object);
 	}
 
-	WeakRef(WeakRef&& other) {
-		proxy = other.proxy;
-		weakObject = other.weakObject;
+	WeakRef(WeakRef&& other) : proxy(other.proxy), object(other.object) {
 		other.proxy = nullptr;
-		other.weakObject = nullptr;
+		other.object = nullptr;
 	}
 
 	~WeakRef() {
@@ -344,9 +336,8 @@ struct WeakRef {
 		if (this != &other) {
 			reset();
 			proxy = other.proxy;
-			weakObject = other.weakObject;
-			if (weakObject)
-				WeakObject_obtain(weakObject);
+			object = other.object;
+			Object_weak_obtain(object);
 		}
 		return *this;
 	}
@@ -355,58 +346,46 @@ struct WeakRef {
 		if (this != &other) {
 			reset();
 			proxy = other.proxy;
-			weakObject = other.weakObject;
+			object = other.object;
 			other.proxy = nullptr;
-			other.weakObject = nullptr;
+			other.object = nullptr;
 		}
 		return *this;
 	}
 
 	Ref<T> lock() const {
-		if (!weakObject || !proxy)
+		if (!object || !proxy)
 			return Ref<T>();
-		Object* object = WeakObject_get(weakObject);
-		if (!object)
+		if (!Object_weak_lock(object))
 			return Ref<T>();
-		// Cached ObjectProxy is guaranteed to still be valid.
+		// We now have a strong reference. Cached ObjectProxy is still valid.
 		Ref<T> ref(proxy);
-		// ref now owns a reference so we don't need this one.
+		// ref obtained another reference, so release the one from weak_lock.
 		Object_release(object);
 		return ref;
 	}
 
 	void reset() {
-		if (!weakObject)
-			return;
-		WeakObject_release(weakObject);
-		weakObject = nullptr;
+		Object_weak_release(object);
+		object = nullptr;
 		proxy = nullptr;
 	}
 
 	void swap(WeakRef& other) {
-		T* proxy = this->proxy;
-		WeakObject* weakObject = this->weakObject;
-		this->proxy = other.proxy;
-		this->weakObject = other.weakObject;
-		other.proxy = proxy;
-		other.weakObject = weakObject;
+		T* p = proxy;
+		Object* o = object;
+		proxy = other.proxy;
+		object = other.object;
+		other.proxy = p;
+		other.object = o;
 	}
 
 	size_t use_count() const {
-		if (!weakObject)
-			return 0;
-		// Because Object stores its own ref count, a reference must be obtained in order to get it.
-		Object* object = WeakObject_get(weakObject);
-		if (!object)
-			return 0;
-		size_t refs = Object_refs_get(object);
-		Object_release(object);
-		// Don't count the reference we just obtained.
-		return refs - 1;
+		return object ? Object_refs_get(object) : 0;
 	}
 
 	bool expired() const {
-		return weakObject ? WeakObject_expired_get(weakObject) : true;
+		return object ? Object_refs_get(object) == 0 : true;
 	}
 
 	bool operator==(const WeakRef& other) {
@@ -415,7 +394,7 @@ struct WeakRef {
 
 private:
 	T* proxy = nullptr;
-	WeakObject* weakObject = nullptr;
+	Object* object = nullptr;
 };
 
 

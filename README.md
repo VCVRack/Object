@@ -124,7 +124,6 @@ The Object struct and each class's data structs are private/opaque and must not 
 
 - [Object.h](Object/Object.h) contains macros to declare and define your classes and methods, as well as runtime function declarations.
 - [Object.cpp](src/Object.cpp) is a possible C++ implementation of the (tiny) runtime. Feel free to port this to C, Go, etc if you have a favorite map/dictionary implementation.
-- [WeakObject.h](Object/WeakObject.h) defines a handle that holds a weak reference to an Object.
 - [examples/](examples/) contains example programs that demonstrate usage and features.
 
 
