@@ -31,12 +31,6 @@ When the Object's methods are called (such as `Animal_speak()`), your overridden
 See Animal.hpp for an example C++ class that wraps an Animal object.
 */
 struct ObjectProxy {
-	Object* const self;
-	/** True if this proxy bound its virtual methods to the Object. */
-	const bool bound;
-	/** True if this proxy owns the Object and will release it upon destruction. */
-	bool owns;
-
 	/** Returns a proxy of type T for the given Object.
 	If the Object has a bound C++ proxy that can be cast to T, returns that.
 	Otherwise, returns a cached proxy if one exists for type T.
@@ -47,7 +41,7 @@ struct ObjectProxy {
 		static_assert(std::is_base_of<ObjectProxy, T>::value, "T must be a subclass of ObjectProxy");
 		if (!self)
 			return NULL;
-		// Check if the Object has a bound C++ proxy that can cast to T
+		// Check if the Object has a bound C++ proxy that can downcast to T
 		const void* boundType = NULL;
 		void* boundProxy = ObjectProxies_bound_get(self, &boundType);
 		if (boundProxy && boundType == &typeid(ObjectProxy)) {
@@ -106,6 +100,16 @@ public:
 		}
 	}
 
+	/** Gets the Object, preserving constness. */
+	Object* self_get() { return self; }
+	const Object* self_get() const { return self; }
+
+	bool bound_get() const { return bound; }
+
+	size_t use_count() const {
+		return Object_refs_get(self_get());
+	}
+
 	/** Obtains ownership of the Object.
 	After adopting, this proxy will release the Object when destroyed.
 	*/
@@ -114,14 +118,6 @@ public:
 			return;
 		owns = true;
 		Object_obtain(self);
-	}
-
-	/** Gets the Object, preserving constness. */
-	Object* self_get() { return self; }
-	const Object* self_get() const { return self; }
-
-	size_t use_count() const {
-		return Object_refs_get(self_get());
 	}
 
 	/** Gets an ObjectProxy's Object, gracefully handling NULL. */
@@ -136,12 +132,17 @@ public:
 		return proxy->self;
 	}
 
+private:
 	static void destructor(void* p) {
 		ObjectProxy* proxy = static_cast<ObjectProxy*>(p);
 		// Release ObjectProxy's ownership of Object so it doesn't release it again in ~ObjectProxy().
 		proxy->owns = false;
 		delete proxy;
 	}
+
+	Object* self;
+	bool bound;
+	bool owns;
 };
 
 
@@ -154,13 +155,13 @@ Example:
 	});
 */
 #define BIND_METHOD(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
-	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](Object* self COMMA_EXPAND ARGTYPES) { \
+	Object_method_push(self_get(), (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](Object* self COMMA_EXPAND ARGTYPES) { \
 		CPPCLASS* that = static_cast<CPPCLASS*>(ObjectProxies_bound_get(self, NULL)); \
 		CODE \
 	}))
 
 #define BIND_METHOD_CONST(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
-	Object_method_push(self, (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](const Object* self COMMA_EXPAND ARGTYPES) { \
+	Object_method_push(self_get(), (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](const Object* self COMMA_EXPAND ARGTYPES) { \
 		const CPPCLASS* that = static_cast<CPPCLASS*>(ObjectProxies_bound_get(self, NULL)); \
 		CODE \
 	}))
@@ -180,15 +181,15 @@ Example:
 Use in ObjectProxy subclass virtual methods.
 */
 #define PROXY_CALL(CLASS, BASE_CLASS, METHOD, ...) \
-	(bound ? CLASS##_##METHOD##_mdirect : BASE_CLASS##_##METHOD)(self, ##__VA_ARGS__)
+	(bound_get() ? CLASS##_##METHOD##_mdirect : BASE_CLASS##_##METHOD)(self_get(), ##__VA_ARGS__)
 
 /** Gets a virtual property, using direct call if bound or dispatch call if not. */
 #define PROXY_GET(CLASS, BASE_CLASS, PROP, ...) \
-	(bound ? CLASS##_##PROP##_get_mdirect : BASE_CLASS##_##PROP##_get)(self, ##__VA_ARGS__)
+	(bound_get() ? CLASS##_##PROP##_get_mdirect : BASE_CLASS##_##PROP##_get)(self_get(), ##__VA_ARGS__)
 
 /** Sets a virtual property, using direct call if bound or dispatch call if not. */
 #define PROXY_SET(CLASS, BASE_CLASS, PROP, ...) \
-	(bound ? CLASS##_##PROP##_set_mdirect : BASE_CLASS##_##PROP##_set)(self, ##__VA_ARGS__)
+	(bound_get() ? CLASS##_##PROP##_set_mdirect : BASE_CLASS##_##PROP##_set)(self_get(), ##__VA_ARGS__)
 
 
 /** Reference counter for an ObjectProxy subclass.
@@ -220,7 +221,7 @@ struct Ref {
 	explicit Ref(std::in_place_t, Args&&... args) : proxy(new T(std::forward<Args>(args)...)) {
 		// If constructing a bound proxy, we already hold the sole reference.
 		// If constructing a proxy from an existing Object, obtain a reference.
-		if (!proxy->bound)
+		if (!proxy->bound_get())
 			obtain();
 	}
 #endif
@@ -311,11 +312,11 @@ struct WeakRef {
 
 	WeakRef() {}
 
-	WeakRef(T* proxy) : proxy(proxy), object(proxy ? proxy->self : nullptr) {
+	WeakRef(T* proxy) : proxy(proxy), object(ObjectProxy::self_get(proxy)) {
 		Object_weak_obtain(object);
 	}
 
-	WeakRef(const Ref<T>& other) : proxy(other.get()), object(proxy ? proxy->self : nullptr) {
+	WeakRef(const Ref<T>& other) : proxy(other.get()), object(ObjectProxy::self_get(proxy)) {
 		Object_weak_obtain(object);
 	}
 
