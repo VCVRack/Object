@@ -445,6 +445,7 @@ struct GetterProxy : Proxy<Base> {
 	T operator->() const { return (T) *this; }
 	T operator+() const { return +(T) *this; }
 	T operator-() const { return -(T) *this; }
+	T operator~() const { return ~(T) *this; }
 
 	template <typename U = T, std::enable_if_t<!std::is_same_v<U, bool>, int> = 0>
 	explicit operator bool() const { return static_cast<bool>((T) *this); }
@@ -452,14 +453,30 @@ struct GetterProxy : Proxy<Base> {
 	template <typename U = T, std::enable_if_t<!std::is_same_v<U, bool>, int> = 0>
 	bool operator!() const { return !static_cast<bool>((T) *this); }
 
-	template <typename U = T, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
 	friend bool operator==(const GetterProxy& a, const U& b) { return a.get() == b; }
-	template <typename U = T, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
 	friend bool operator==(const U& a, const GetterProxy& b) { return a == b.get(); }
-	template <typename U = T, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
 	friend bool operator!=(const GetterProxy& a, const U& b) { return a.get() != b; }
-	template <typename U = T, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
 	friend bool operator!=(const U& a, const GetterProxy& b) { return a != b.get(); }
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator<(const GetterProxy& a, const U& b) { return a.get() < b; }
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator<(const U& a, const GetterProxy& b) { return a < b.get(); }
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator>(const GetterProxy& a, const U& b) { return a.get() > b; }
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator>(const U& a, const GetterProxy& b) { return a > b.get(); }
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator<=(const GetterProxy& a, const U& b) { return a.get() <= b; }
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator<=(const U& a, const GetterProxy& b) { return a <= b.get(); }
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator>=(const GetterProxy& a, const U& b) { return a.get() >= b; }
+	template <typename U, std::enable_if_t<std::is_class_v<U>, int> = 0>
+	friend bool operator>=(const U& a, const GetterProxy& b) { return a >= b.get(); }
 };
 
 
@@ -527,6 +544,12 @@ struct AccessorProxy : GetterProxy<Base> {
 	AccessorProxy& operator-=(const T& t) { return *this = (T) *this - t; }
 	AccessorProxy& operator*=(const T& t) { return *this = (T) *this * t; }
 	AccessorProxy& operator/=(const T& t) { return *this = (T) *this / t; }
+	AccessorProxy& operator%=(const T& t) { return *this = (T) *this % t; }
+	AccessorProxy& operator&=(const T& t) { return *this = (T) *this & t; }
+	AccessorProxy& operator|=(const T& t) { return *this = (T) *this | t; }
+	AccessorProxy& operator^=(const T& t) { return *this = (T) *this ^ t; }
+	AccessorProxy& operator<<=(const T& t) { return *this = (T) *this << t; }
+	AccessorProxy& operator>>=(const T& t) { return *this = (T) *this >> t; }
 	AccessorProxy& operator++() { return *this += T(1); }
 	T operator++(int) { T tmp = *this; *this = tmp + T(1); return tmp; }
 	AccessorProxy& operator--() { return *this -= T(1); }
@@ -721,6 +744,12 @@ struct ArrayAccessorProxy : Proxy<Base> {
 		ElementAccessor& operator-=(const T& t) { return *this = (T) *this - t; }
 		ElementAccessor& operator*=(const T& t) { return *this = (T) *this * t; }
 		ElementAccessor& operator/=(const T& t) { return *this = (T) *this / t; }
+		ElementAccessor& operator%=(const T& t) { return *this = (T) *this % t; }
+		ElementAccessor& operator&=(const T& t) { return *this = (T) *this & t; }
+		ElementAccessor& operator|=(const T& t) { return *this = (T) *this | t; }
+		ElementAccessor& operator^=(const T& t) { return *this = (T) *this ^ t; }
+		ElementAccessor& operator<<=(const T& t) { return *this = (T) *this << t; }
+		ElementAccessor& operator>>=(const T& t) { return *this = (T) *this >> t; }
 		ElementAccessor& operator++() { return *this += 1; }
 		T operator++(int) { T tmp = *this; *this = tmp + 1; return tmp; }
 		ElementAccessor& operator--() { return *this -= 1; }
