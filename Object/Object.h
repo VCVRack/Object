@@ -43,6 +43,56 @@ Declaration macros for public headers
 */
 
 
+/** Declares a free function (not tied to an Object class).
+
+Example:
+	FUNCTION(zoo, init, void, ())
+
+Declares:
+	void zoo_init();
+*/
+#define FUNCTION(PREFIX, NAME, RETTYPE, ARGTYPES) \
+	EXTERNC RETTYPE PREFIX##_##NAME(EXPAND ARGTYPES)
+
+
+/** Declares a global getter function.
+
+Example:
+	GLOBAL_GETTER(zoo, temperature, float)
+
+Declares:
+	float zoo_temperature_get();
+*/
+#define GLOBAL_GETTER(PREFIX, NAME, TYPE) \
+	FUNCTION(PREFIX, NAME##_get, TYPE, ())
+
+
+/** Declares a global setter function.
+
+Example:
+	GLOBAL_SETTER(zoo, temperature, float)
+
+Declares:
+	void zoo_temperature_set(float temperature);
+*/
+#define GLOBAL_SETTER(PREFIX, NAME, TYPE) \
+	FUNCTION(PREFIX, NAME##_set, void, (TYPE NAME))
+
+
+/** Declares a global getter/setter function pair.
+
+Example:
+	GLOBAL_ACCESSOR(zoo, temperature, float)
+
+Declares:
+	float zoo_temperature_get();
+	void zoo_temperature_set(float temperature);
+*/
+#define GLOBAL_ACCESSOR(PREFIX, NAME, TYPE) \
+	GLOBAL_GETTER(PREFIX, NAME, TYPE); \
+	GLOBAL_SETTER(PREFIX, NAME, TYPE)
+
+
 /** Declares a class Class struct and constructor function.
 
 CLASS is the class name such as `Animal`.
@@ -518,6 +568,52 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 #define DEFINE_VECTOR_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
 	DEFINE_ARRAY_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER, SETTER) \
 	DEFINE_SETTER(CLASS, PROP##_count, size_t, COUNTSETTER)
+
+
+/** Defines a free function (not tied to an Object class).
+
+Example:
+	DEFINE_FUNCTION(zoo, init, void, (), {
+		...
+	})
+
+Defines:
+	void zoo_init() { ... }
+*/
+#define DEFINE_FUNCTION(PREFIX, NAME, RETTYPE, ARGTYPES, CODE) \
+	EXTERNC RETTYPE PREFIX##_##NAME(EXPAND ARGTYPES) { \
+		CODE \
+	}
+
+
+#define DEFINE_GLOBAL_GETTER(PREFIX, NAME, TYPE, CODE) \
+	DEFINE_FUNCTION(PREFIX, NAME##_get, TYPE, (), CODE)
+
+
+#define DEFINE_GLOBAL_GETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_GETTER(PREFIX, NAME, TYPE, { \
+		return NAME; \
+	})
+
+
+#define DEFINE_GLOBAL_SETTER(PREFIX, NAME, TYPE, CODE) \
+	DEFINE_FUNCTION(PREFIX, NAME##_set, void, (TYPE NAME), CODE)
+
+
+#define DEFINE_GLOBAL_SETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+	EXTERNC void PREFIX##_##NAME##_set(TYPE NAME##_) { \
+		NAME = NAME##_; \
+	}
+
+
+#define DEFINE_GLOBAL_ACCESSOR(PREFIX, NAME, TYPE, GETTER, SETTER) \
+	DEFINE_GLOBAL_GETTER(PREFIX, NAME, TYPE, GETTER) \
+	DEFINE_GLOBAL_SETTER(PREFIX, NAME, TYPE, SETTER)
+
+
+#define DEFINE_GLOBAL_ACCESSOR_AUTOMATIC(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_GETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_SETTER_AUTOMATIC(PREFIX, NAME, TYPE)
 
 
 /**************************************

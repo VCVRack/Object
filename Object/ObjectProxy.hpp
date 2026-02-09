@@ -494,6 +494,26 @@ Usage:
 	})
 
 
+#define GLOBAL_GETTER_PROXY_CUSTOM(PROP, TYPE, GETTER) \
+	struct Proxy_##PROP { \
+		TYPE get() const { GETTER } \
+	}; \
+	inline const GetterProxy<Proxy_##PROP> PROP
+
+
+/** Behaves like a const global variable but wraps a free getter function.
+Example:
+	GLOBAL_GETTER_PROXY(zoo, temperature, float);
+
+Usage:
+	float t = temperature; // Calls zoo_temperature_get()
+*/
+#define GLOBAL_GETTER_PROXY(PREFIX, PROP, TYPE) \
+	GLOBAL_GETTER_PROXY_CUSTOM(PROP, TYPE, { \
+		return PREFIX##_##PROP##_get(); \
+	})
+
+
 template <typename Base>
 struct AccessorProxy : GetterProxy<Base> {
 	using T = typename GetterProxy<Base>::T;
@@ -545,6 +565,30 @@ Usage:
 		return GET(self, CLASS, PROP); \
 	}, { \
 		SET(self, CLASS, PROP, PROP); \
+	})
+
+
+#define GLOBAL_ACCESSOR_PROXY_CUSTOM(PROP, TYPE, GETTER, SETTER) \
+	struct Proxy_##PROP { \
+		TYPE get() const { GETTER } \
+		void set(TYPE PROP) { SETTER } \
+	}; \
+	inline AccessorProxy<Proxy_##PROP> PROP
+
+
+/** Behaves like a mutable global variable but wraps free getter/setter functions.
+Example:
+	GLOBAL_ACCESSOR_PROXY(zoo, temperature, float);
+
+Usage:
+	float t = temperature; // Calls zoo_temperature_get()
+	temperature = 72.0f; // Calls zoo_temperature_set(72.0f)
+*/
+#define GLOBAL_ACCESSOR_PROXY(PREFIX, PROP, TYPE) \
+	GLOBAL_ACCESSOR_PROXY_CUSTOM(PROP, TYPE, { \
+		return PREFIX##_##PROP##_get(); \
+	}, { \
+		PREFIX##_##PROP##_set(PROP); \
 	})
 
 
@@ -890,6 +934,24 @@ struct StringGetterProxy : GetterProxy<Base> {
 	})
 
 
+#define GLOBAL_STRING_GETTER_PROXY_CUSTOM(PROP, GETTER) \
+	struct Proxy_##PROP { \
+		std::string get() const { GETTER } \
+	}; \
+	inline const StringGetterProxy<Proxy_##PROP> PROP
+
+
+/** Behaves like a `const std::string` global but wraps a `char*` getter where the caller must free(). */
+#define GLOBAL_STRING_GETTER_PROXY(PREFIX, PROP) \
+	GLOBAL_STRING_GETTER_PROXY_CUSTOM(PROP, { \
+		char* c = PREFIX##_##PROP##_get(); \
+		if (!c) return std::string(); \
+		std::string s = c; \
+		free(c); \
+		return s; \
+	})
+
+
 template <typename Base>
 struct StringAccessorProxy : AccessorProxy<Base> {
 	using AccessorProxy<Base>::operator=;
@@ -926,4 +988,25 @@ struct StringAccessorProxy : AccessorProxy<Base> {
 		return s; \
 	}, { \
 		SET(self, CLASS, PROP, PROP.c_str()); \
+	})
+
+
+#define GLOBAL_STRING_ACCESSOR_PROXY_CUSTOM(PROP, GETTER, SETTER) \
+	struct Proxy_##PROP { \
+		std::string get() const { GETTER } \
+		void set(std::string PROP) { SETTER } \
+	}; \
+	inline StringAccessorProxy<Proxy_##PROP> PROP
+
+
+/** Behaves like a `std::string` global but wraps a `char*` getter (caller frees) and `const char*` setter. */
+#define GLOBAL_STRING_ACCESSOR_PROXY(PREFIX, PROP) \
+	GLOBAL_STRING_ACCESSOR_PROXY_CUSTOM(PROP, { \
+		char* c = PREFIX##_##PROP##_get(); \
+		if (!c) return std::string(); \
+		std::string s = c; \
+		free(c); \
+		return s; \
+	}, { \
+		PREFIX##_##PROP##_set(PROP.c_str()); \
 	})
