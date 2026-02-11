@@ -64,6 +64,22 @@ struct ObjectProxy {
 		return of<T>(const_cast<Object*>(self));
 	}
 
+	/** Returns a proxy of type T and releases the Object.
+	*/
+	template <class T>
+	static T* of_release(Object* self) {
+		if (!self)
+			return NULL;
+		T* proxy = of<T>(self);
+		Object_release(self);
+		return proxy;
+	}
+
+	template <class T>
+	static const T* of_release(const Object* self) {
+		return of_release<T>(const_cast<Object*>(self));
+	}
+
 	/** Constructs an ObjectProxy with a new Object.
 	Each ObjectProxy subclass should implement its own default constructor that creates a specialized Object.
 	*/
