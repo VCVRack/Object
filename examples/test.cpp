@@ -29,8 +29,8 @@ int main() {
 	// Call virtual method, which calls Dog's overridden implementation.
 	Animal_speak(animal); // "Woof, I'm a dog named Fido with 3 legs."
 
-	// All Objects must be released.
-	Object_release(animal);
+	// All Objects must be unreferenced.
+	Object_unref(animal);
 
 
 
@@ -83,7 +83,7 @@ int main() {
 	}
 
 	assert(GET(dog, Object, refs) == 1);
-	Object_release(dog);
+	Object_unref(dog);
 
 	return 0;
 }

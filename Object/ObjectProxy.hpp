@@ -71,7 +71,7 @@ struct ObjectProxy {
 		if (!self)
 			return NULL;
 		T* proxy = of<T>(self);
-		Object_release(self);
+		Object_unref(self);
 		return proxy;
 	}
 
@@ -104,7 +104,7 @@ public:
 	virtual ~ObjectProxy() {
 		// Remove proxy from ObjectProxies
 		if (bound) {
-			// Clear bound proxy destructor, so Object_release below doesn't call ObjectProxy destructor again
+			// Clear bound proxy destructor, so Object_unref below doesn't call ObjectProxy destructor again
 			ObjectProxies_bound_set(self, this, &typeid(ObjectProxy), NULL);
 		}
 		else {
@@ -112,7 +112,7 @@ public:
 		}
 		// Release Object if the proxy owns it
 		if (owns) {
-			Object_release(self);
+			Object_unref(self);
 		}
 	}
 
@@ -133,7 +133,7 @@ public:
 		if (owns)
 			return;
 		owns = true;
-		Object_obtain(self);
+		Object_ref(self);
 	}
 
 	/** Gets an ObjectProxy's Object, gracefully handling NULL. */
@@ -307,12 +307,12 @@ private:
 
 	void obtain() noexcept {
 		if (proxy)
-			Object_obtain(proxy->self_get());
+			Object_ref(proxy->self_get());
 	}
 
 	void release() noexcept {
 		if (proxy)
-			Object_release(proxy->self_get());
+			Object_unref(proxy->self_get());
 	}
 };
 
@@ -329,15 +329,15 @@ struct WeakRef {
 	WeakRef() {}
 
 	WeakRef(T* proxy) : proxy(proxy), object(ObjectProxy::self_get(proxy)) {
-		Object_weak_obtain(object);
+		Object_weak_ref(object);
 	}
 
 	WeakRef(const Ref<T>& other) : proxy(other.get()), object(ObjectProxy::self_get(proxy)) {
-		Object_weak_obtain(object);
+		Object_weak_ref(object);
 	}
 
 	WeakRef(const WeakRef& other) : proxy(other.proxy), object(other.object) {
-		Object_weak_obtain(object);
+		Object_weak_ref(object);
 	}
 
 	WeakRef(WeakRef&& other) : proxy(other.proxy), object(other.object) {
@@ -354,7 +354,7 @@ struct WeakRef {
 			reset();
 			proxy = other.proxy;
 			object = other.object;
-			Object_weak_obtain(object);
+			Object_weak_ref(object);
 		}
 		return *this;
 	}
@@ -378,12 +378,12 @@ struct WeakRef {
 		// We now have a strong reference. Cached ObjectProxy is still valid.
 		Ref<T> ref(proxy);
 		// ref obtained another reference, so release the one from weak_lock.
-		Object_release(object);
+		Object_unref(object);
 		return ref;
 	}
 
 	void reset() {
-		Object_weak_release(object);
+		Object_weak_unref(object);
 		object = nullptr;
 		proxy = nullptr;
 	}

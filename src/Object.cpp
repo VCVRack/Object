@@ -40,7 +40,7 @@ Object* Object_create() {
 }
 
 
-void Object_obtain(const Object* self) {
+void Object_ref(const Object* self) {
 	if (!self)
 		return;
 	// This check isn't part of the thread-safety guarantee, but it protects against obtaining a reference within a finalize() or free() function.
@@ -52,7 +52,7 @@ void Object_obtain(const Object* self) {
 }
 
 
-void Object_release(const Object* self) {
+void Object_unref(const Object* self) {
 	if (!self)
 		return;
 	// This check isn't part of the thread-safety guarantee, but it protects against releasing a reference within a finalize() or free() function.
@@ -96,14 +96,14 @@ uint32_t Object_refs_get(const Object* self) {
 }
 
 
-void Object_weak_obtain(const Object* self) {
+void Object_weak_ref(const Object* self) {
 	if (!self)
 		return;
 	const_cast<Object*>(self)->refs.fetch_add(uint64_t(1) << 32);
 }
 
 
-void Object_weak_release(const Object* self) {
+void Object_weak_unref(const Object* self) {
 	if (!self)
 		return;
 	uint64_t old = self->refs.load();

@@ -61,11 +61,11 @@ Bird_fly(dog); // Nothing happens, no-op
 Bird_wingspan_get(dog); // Returns a default/error value defined by Bird_wingspan_get() implementation, such as -1
 ```
 
-Objects are reference-counted, and each shared owner must release their reference to avoid a memory leak.
-When an object's last reference is released, each class's `finalize()` function is called in reverse order of specialization, where virtual methods are allowed to be called.
+Objects are reference-counted, and each shared owner must unreference their reference to avoid a memory leak.
+When an object's last reference is unreferenced, each class's `finalize()` function is called in reverse order of specialization, where virtual methods are allowed to be called.
 Then each class's `free()` is called in reverse order, where virtual methods are *not* allowed to be called.
 ```c
-Object_release(dog);
+Object_unref(dog);
 ```
 
 

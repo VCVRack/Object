@@ -727,7 +727,7 @@ typedef struct Class {
 
 /** Creates an object with no classes.
 Reference count is set to 1.
-Object must be released with Object_release() to prevent a memory leak.
+Object must be unreferenced with Object_unref() to prevent a memory leak.
 Never returns NULL.
 */
 Object* Object_create();
@@ -735,11 +735,11 @@ Object* Object_create();
 
 /** Increments the object's reference counter.
 Use this to share another reference to this object.
-Each reference must be released with Object_release() to prevent a memory leak.
+Each reference must be unreferenced with Object_unref() to prevent a memory leak.
 Thread-safe.
 Does nothing if self is NULL.
 */
-void Object_obtain(const Object* self);
+void Object_ref(const Object* self);
 
 
 /** Decrements the object's reference counter.
@@ -750,7 +750,7 @@ Calls finalize() for each class in reverse order of specialization, and then fre
 Thread-safe.
 Does nothing if self is NULL.
 */
-void Object_release(const Object* self);
+void Object_unref(const Object* self);
 
 
 /** Returns the number of strong references to the object.
@@ -760,11 +760,11 @@ uint32_t Object_refs_get(const Object* self);
 
 /** Increments the object's weak reference counter.
 A weak reference does not prevent the object from being freed, but it keeps the object pointer valid so that Object_weak_lock() can be safely called.
-Each weak reference must be released with Object_weak_release().
+Each weak reference must be unreferenced with Object_weak_unref().
 Thread-safe.
 Does nothing if self is NULL.
 */
-void Object_weak_obtain(const Object* self);
+void Object_weak_ref(const Object* self);
 
 
 /** Decrements the object's weak reference counter.
@@ -772,7 +772,7 @@ If no strong or weak references are left, this frees the object shell.
 Thread-safe.
 Does nothing if self is NULL.
 */
-void Object_weak_release(const Object* self);
+void Object_weak_unref(const Object* self);
 
 
 /** Returns the number of weak references to the object.
@@ -781,7 +781,7 @@ uint32_t Object_weak_refs_get(const Object* self);
 
 
 /** Attempts to obtain a strong reference from a weak reference.
-If successful, the caller must release the strong reference with Object_release().
+If successful, the caller must unreference the strong reference with Object_unref().
 Thread-safe.
 */
 bool Object_weak_lock(const Object* self);
