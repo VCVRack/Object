@@ -45,44 +45,51 @@ struct ObjectRefT {
 	}
 
 	~ObjectRefT() {
-		Object_unref(object);
+		T* old = object;
+		object = NULL;
+		Object_unref(old);
 	}
 
 	ObjectRefT& operator=(T* obj) {
-		Object_unref(object);
+		T* old = object;
 		object = obj;
+		Object_unref(old);
 		return *this;
 	}
 
 	ObjectRefT& operator=(const ObjectRefT& other) {
 		Object_ref(other.object);
-		Object_unref(object);
+		T* old = object;
 		object = other.object;
+		Object_unref(old);
 		return *this;
 	}
 
 	template<typename U>
 	ObjectRefT& operator=(const ObjectRefT<U>& other) {
 		Object_ref(other.object);
-		Object_unref(object);
+		T* old = object;
 		object = other.object;
+		Object_unref(old);
 		return *this;
 	}
 
 	ObjectRefT& operator=(ObjectRefT&& other) {
 		if (this != &other) {
-			Object_unref(object);
+			T* old = object;
 			object = other.object;
 			other.object = NULL;
+			Object_unref(old);
 		}
 		return *this;
 	}
 
 	template<typename U>
 	ObjectRefT& operator=(ObjectRefT<U>&& other) {
-		Object_unref(object);
+		T* old = object;
 		object = other.object;
 		other.object = NULL;
+		Object_unref(old);
 		return *this;
 	}
 
@@ -157,13 +164,16 @@ struct WeakObjectRefT {
 	}
 
 	~WeakObjectRefT() {
-		Object_weak_unref(object);
+		T* old = object;
+		object = NULL;
+		Object_weak_unref(old);
 	}
 
 	WeakObjectRefT& operator=(T* obj) {
 		Object_weak_ref(obj);
-		Object_weak_unref(object);
+		T* old = object;
 		object = obj;
+		Object_weak_unref(old);
 		return *this;
 	}
 
@@ -171,40 +181,45 @@ struct WeakObjectRefT {
 	WeakObjectRefT& operator=(const ObjectRefT<U>& other) {
 		T* obj = other;
 		Object_weak_ref(obj);
-		Object_weak_unref(object);
+		T* old = object;
 		object = obj;
+		Object_weak_unref(old);
 		return *this;
 	}
 
 	WeakObjectRefT& operator=(const WeakObjectRefT& other) {
 		Object_weak_ref(other.object);
-		Object_weak_unref(object);
+		T* old = object;
 		object = other.object;
+		Object_weak_unref(old);
 		return *this;
 	}
 
 	template<typename U>
 	WeakObjectRefT& operator=(const WeakObjectRefT<U>& other) {
 		Object_weak_ref(other.object);
-		Object_weak_unref(object);
+		T* old = object;
 		object = other.object;
+		Object_weak_unref(old);
 		return *this;
 	}
 
 	WeakObjectRefT& operator=(WeakObjectRefT&& other) {
 		if (this != &other) {
-			Object_weak_unref(object);
+			T* old = object;
 			object = other.object;
 			other.object = NULL;
+			Object_weak_unref(old);
 		}
 		return *this;
 	}
 
 	template<typename U>
 	WeakObjectRefT& operator=(WeakObjectRefT<U>&& other) {
-		Object_weak_unref(object);
+		T* old = object;
 		object = other.object;
 		other.object = NULL;
+		Object_weak_unref(old);
 		return *this;
 	}
 
