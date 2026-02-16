@@ -20,7 +20,7 @@ Once an ObjectProxy subclass is defined, there are two ways to use it.
 
 You can obtain an ObjectProxy from an existing Object by calling `ObjectProxy::of<T>(object)`.
 This calls the constructor `T(Object)` unless an ObjectProxy of type T is cached.
-The ObjectProxy does not own the Object (unless you call `adopt()`), and the ObjectProxy is deleted when the Object is freed.
+The ObjectProxy does not own the Object (unless you call `own()`), and the ObjectProxy is deleted when the Object is freed.
 You do not need to delete the ObjectProxy, but it is safe to do so.
 
 ## Bound
@@ -126,14 +126,24 @@ public:
 		return Object_refs_get(self_get());
 	}
 
-	/** Obtains ownership of the Object.
-	After adopting, this proxy will release the Object when destroyed.
+	/** Takes ownership of the Object.
+	Increments the reference count. The proxy will unreference the Object when destroyed.
 	*/
-	void adopt() {
+	void own() {
 		if (owns)
 			return;
 		owns = true;
 		Object_ref(self);
+	}
+
+	/** Gives up ownership of the Object.
+	Decrements the reference count. The proxy will no longer unreference the Object when destroyed.
+	*/
+	void disown() {
+		if (!owns)
+			return;
+		owns = false;
+		Object_unref(self);
 	}
 
 	/** Gets an ObjectProxy's Object, gracefully handling NULL. */
