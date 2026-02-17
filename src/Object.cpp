@@ -44,8 +44,8 @@ void Object_ref(const Object* self) {
 	if (!self)
 		return;
 	// This check isn't part of the thread-safety guarantee, but it protects against obtaining a reference within a finalize() or free() function.
-	uint64_t old = self->refs.load();
-	if ((old & 0xFFFFFFFF) == 0)
+	uint64_t refs = self->refs.load();
+	if ((refs & 0xFFFFFFFF) == 0)
 		return;
 	// Increment strong reference count
 	const_cast<Object*>(self)->refs.fetch_add(1);
@@ -56,15 +56,15 @@ void Object_unref(const Object* self) {
 	if (!self)
 		return;
 	// This check isn't part of the thread-safety guarantee, but it protects against releasing a reference within a finalize() or free() function.
-	uint64_t old = self->refs.load();
-	if ((old & 0xFFFFFFFF) == 0)
+	uint64_t refs = self->refs.load();
+	if ((refs & 0xFFFFFFFF) == 0)
 		return;
 	// Decrement strong reference count
-	old = const_cast<Object*>(self)->refs.fetch_sub(1);
-	uint32_t old_strong = old & 0xFFFFFFFF;
-	uint32_t old_weak = old >> 32;
-	if (old_strong != 1)
+	refs = const_cast<Object*>(self)->refs.fetch_sub(1);
+	if ((refs & 0xFFFFFFFF) != 1)
 		return;
+	// Prevent the Object from being deleted during finalize or free callbacks by adding a weak reference.
+	Object_weak_ref(self);
 	// Finalize classes in reverse order
 	for (auto it = self->classes.rbegin(); it != self->classes.rend(); it++) {
 		const Class* cls = *it;
@@ -83,9 +83,8 @@ void Object_unref(const Object* self) {
 	const_cast<Object*>(self)->datas.clear();
 	const_cast<Object*>(self)->methods.clear();
 	const_cast<Object*>(self)->supermethods.clear();
-	// Free Object shell only if no weak references remain
-	if (old_weak == 0)
-		delete self;
+	// Release the prevent-deletion weak reference, allowing the Object to be deleted if no other weak references remain.
+	Object_weak_unref(self);
 }
 
 
@@ -106,15 +105,15 @@ void Object_weak_ref(const Object* self) {
 void Object_weak_unref(const Object* self) {
 	if (!self)
 		return;
-	uint64_t old = self->refs.load();
-	if ((old >> 32) == 0)
+	uint64_t refs = self->refs.load();
+	if ((refs >> 32) == 0)
 		return;
 	// Decrement weak reference count
-	old = const_cast<Object*>(self)->refs.fetch_sub(uint64_t(1) << 32);
-	uint32_t old_strong = old & 0xFFFFFFFF;
-	uint32_t old_weak = old >> 32;
+	refs = const_cast<Object*>(self)->refs.fetch_sub(uint64_t(1) << 32);
+	uint32_t refs_strong = refs & 0xFFFFFFFF;
+	uint32_t refs_weak = refs >> 32;
 	// Free Object shell if this was the last weak ref and strong refs are already gone
-	if (old_weak == 1 && old_strong == 0)
+	if (refs_weak == 1 && refs_strong == 0)
 		delete self;
 }
 
@@ -130,9 +129,9 @@ bool Object_weak_lock(const Object* self) {
 	if (!self)
 		return false;
 	// Atomically increment strong refs only if currently > 0
-	uint64_t old = self->refs.load();
-	while ((old & 0xFFFFFFFF) > 0) {
-		if (const_cast<Object*>(self)->refs.compare_exchange_weak(old, old + 1))
+	uint64_t refs = self->refs.load();
+	while ((refs & 0xFFFFFFFF) > 0) {
+		if (const_cast<Object*>(self)->refs.compare_exchange_weak(refs, refs + 1))
 			return true;
 	}
 	return false;
