@@ -180,8 +180,6 @@ void Object_class_remove(Object* self, const Class* cls) {
 		auto& slot = self->classes.back();
 		const Class* c = slot.cls;
 
-		if (c->finalize)
-			c->finalize(self);
 		if (c->free)
 			c->free(self);
 

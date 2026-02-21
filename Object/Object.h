@@ -372,17 +372,6 @@ Definition macros for source implementation files
 	}
 
 
-#define DEFINE_CLASS_FINALIZE(CLASS, CODE) \
-	static void CLASS##_finalize(Object* self) { \
-		if (!self) \
-			return; \
-		CLASS* data = 0; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
-			return; \
-		CODE \
-	}
-
-
 #define DEFINE_CLASS(CLASS, INITARGS, INITARGNAMES, INIT, FREE) \
 	extern const Class CLASS##_class; \
 	typedef struct CLASS CLASS; \
@@ -705,23 +694,14 @@ EXTERNC_BEGIN
 typedef struct Object Object;
 
 typedef void Object_free_m(Object* self);
-typedef void Object_finalize_m(Object* self);
 
 typedef struct Class {
 	const char* name;
 	/** Frees data pointer and its contents, if non-NULL.
-	Must not call virtual methods.
-	Called by Object_free() for each class in reverse order.
 	*/
 	Object_free_m* free;
-	/** Prepares object to be freed, if non-NULL.
-	Can call virtual methods.
-	Called by Object_free() for each class in reverse order.
-	*/
-	Object_finalize_m* finalize;
 	// Reserved for future fields. Must be zero.
-	// Possibly `getDataSize`
-	void* reserved[29];
+	void* reserved[30];
 } Class;
 
 
@@ -745,8 +725,6 @@ void Object_ref(const Object* self);
 /** Decrements the object's reference counter.
 If no references are left, this frees the object and its internal data for each class.
 Object should be considered invalid after calling this function.
-
-Calls finalize() for each class in reverse order of specialization, and then free() in reverse order.
 Thread-safe.
 Does nothing if self is NULL.
 */
