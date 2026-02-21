@@ -802,12 +802,37 @@ Not thread-safe with accessing classes or calling methods.
 bool Object_class_check(const Object* self, const Class* cls, void** dataOut);
 
 
+/** Removes a class and all classes above it from an object.
+For each class in reverse order, this reverts its method overrides, calls free(), and removes its data.
+Does nothing if self is NULL or the class is not found.
+Not thread-safe with accessing classes or calling methods.
+*/
+void Object_class_remove(Object* self, const Class* cls);
+
+
 /** Overrides a method dispatched by the `dispatcher` function pointer.
 Not thread-safe with accessing methods or calling methods.
 */
 void Object_method_push(Object* self, void* dispatcher, void* method);
+
+
+/** Returns the direct method for the given dispatch method.
+Returns NULL if no method has been pushed for the dispatcher.
+*/
 void* Object_method_get(const Object* self, void* dispatcher);
+
+
+/** Returns the method that was overridden by the given method.
+Returns NULL if the method is the first in the chain, or does not exist.
+*/
 void* Object_supermethod_get(const Object* self, void* method);
+
+
+/** Removes a method and all methods above it on the given dispatcher.
+Does nothing if self is NULL or the method is not in the dispatcher's chain.
+Not thread-safe with accessing methods or calling methods.
+*/
+void Object_method_remove(Object* self, void* dispatcher, void* method);
 
 
 /** Generates a string listing all type names and data pointers of an object in order of specialization.

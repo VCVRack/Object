@@ -138,6 +138,7 @@ public:
 
 	/** Gives up ownership of the Object.
 	Decrements the reference count. The proxy will no longer unreference the Object when destroyed.
+	Note: If the Object has no other owners, this deletes the Object and ObjectProxy.
 	*/
 	void disown() {
 		if (!owns)

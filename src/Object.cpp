@@ -9,6 +9,7 @@ Feel free to rewrite this in other languages that can export C symbols.
 #include <cassert>
 #include <cstdio>
 #include <vector>
+#include <algorithm>
 #include <atomic>
 #include <Object/Object.h>
 #include "FlatMap.hpp"
@@ -19,13 +20,21 @@ static_assert(sizeof(Class) == 256, "Object Class size must be 256 bytes");
 
 
 struct Object {
+	struct Override {
+		void* dispatcher;
+		void* method;
+	};
+	struct ClassSlot {
+		const Class* cls;
+		std::vector<Override> overrides;
+	};
 	// Classes ordered by specialization
-	std::vector<const Class*> classes;
-	// Quick access to data per class
+	std::vector<ClassSlot> classes;
+	// Class -> data pointer
 	FlatMap<const Class*, void*> datas;
-	// Method overloads: dispatcher function pointer -> method pointer
+	// dispatch function pointer -> method function pointer
 	FlatMap<void*, void*> methods;
-	// Super methods: method pointer -> method pointer that was overridden by it
+	// method function pointer -> overridden method function pointer
 	FlatMap<void*, void*> supermethods;
 
 	// Packed reference counts: low 32 bits = strong refs, high 32 bits = weak refs
@@ -65,19 +74,9 @@ void Object_unref(const Object* self) {
 		return;
 	// Prevent the Object from being deleted during finalize or free callbacks by adding a weak reference.
 	Object_weak_ref(self);
-	// Finalize classes in reverse order
-	for (auto it = self->classes.rbegin(); it != self->classes.rend(); it++) {
-		const Class* cls = *it;
-		if (cls->finalize)
-			cls->finalize(const_cast<Object*>(self));
-	}
-	// Free classes in reverse order
-	while (!self->classes.empty()) {
-		const Class* cls = self->classes.back();
-		if (cls->free)
-			cls->free(const_cast<Object*>(self));
-		const_cast<Object*>(self)->classes.pop_back();
-		// For performance, we don't need to erase the self->datas element, since calling Object_class_check() for a derived class in a Base class's free() is undefined behavior.
+	// Remove all classes from top to bottom
+	if (!self->classes.empty()) {
+		Object_class_remove(const_cast<Object*>(self), self->classes.front().cls);
 	}
 	// Clear all maps so weak reference holders get clean failures
 	const_cast<Object*>(self)->datas.clear();
@@ -147,7 +146,7 @@ void Object_class_push(Object* self, const Class* cls, void* data) {
 		return;
 	// Set class data
 	self->datas.insert(cls, data);
-	self->classes.push_back(cls);
+	self->classes.push_back({cls, {}});
 }
 
 
@@ -164,6 +163,54 @@ bool Object_class_check(const Object* self, const Class* cls, void** dataOut) {
 }
 
 
+void Object_class_remove(Object* self, const Class* cls) {
+	if (!self)
+		return;
+
+	// Find target class, searching from the top since removal usually targets recent classes
+	auto rit = std::find_if(self->classes.rbegin(), self->classes.rend(), [&](const Object::ClassSlot& slot) {
+		return slot.cls == cls;
+	});
+	if (rit == self->classes.rend())
+		return;
+	size_t target = self->classes.rend() - rit - 1;
+
+	// Remove classes from top down to target (inclusive)
+	while (self->classes.size() > target) {
+		auto& slot = self->classes.back();
+		const Class* c = slot.cls;
+
+		if (c->finalize)
+			c->finalize(self);
+		if (c->free)
+			c->free(self);
+
+		// Revert method overrides in reverse order
+		for (size_t j = slot.overrides.size(); j > 0; j--) {
+			void* dispatcher = slot.overrides[j - 1].dispatcher;
+			void* method = slot.overrides[j - 1].method;
+
+			void** restorep = self->supermethods.find(method);
+			void* restore = restorep ? *restorep : NULL;
+			if (restorep)
+				self->supermethods.erase(method);
+
+			if (restore) {
+				void** methodp = self->methods.find(dispatcher);
+				if (methodp)
+					*methodp = restore;
+			}
+			else {
+				self->methods.erase(dispatcher);
+			}
+		}
+
+		self->datas.erase(c);
+		self->classes.pop_back();
+	}
+}
+
+
 void Object_method_push(Object* self, void* dispatcher, void* method) {
 	if (!self)
 		return;
@@ -175,14 +222,18 @@ void Object_method_push(Object* self, void* dispatcher, void* method) {
 		void* supermethod = *existing;
 		// We can't re-override the same method
 		assert(method != supermethod);
-		// Don't replace method's supermethod if already set
-		if (!self->supermethods.find(method))
-			self->supermethods.insert(method, supermethod);
+		// Method is already an override on another dispatcher
+		if (self->supermethods.find(method))
+			return;
+		self->supermethods.insert(method, supermethod);
 		*existing = method;
 	}
 	else {
 		self->methods.insert(dispatcher, method);
 	}
+	// Record override in the current class
+	if (!self->classes.empty())
+		self->classes.back().overrides.push_back({dispatcher, method});
 }
 
 
@@ -206,6 +257,60 @@ void* Object_supermethod_get(const Object* self, void* method) {
 }
 
 
+void Object_method_remove(Object* self, void* dispatcher, void* method) {
+	if (!self)
+		return;
+	void** headp = self->methods.find(dispatcher);
+	if (!headp)
+		return;
+	void* head = *headp;
+
+	// Verify method is in the dispatcher's chain
+	void* current = head;
+	while (current && current != method) {
+		void** currentp = self->supermethods.find(current);
+		current = currentp ? *currentp : NULL;
+	}
+	if (current != method)
+		return;
+
+	// Save the restore point before modifying anything
+	void** restorep = self->supermethods.find(method);
+	void* restore = restorep ? *restorep : NULL;
+
+	// Remove methods from head down to method (inclusive)
+	current = head;
+	while (true) {
+		void** nextp = self->supermethods.find(current);
+		void* next = nextp ? *nextp : NULL;
+
+		// Remove from supermethods cache
+		self->supermethods.erase(current);
+
+		// Remove from owning class's override list
+		for (auto& slot : self->classes) {
+			auto it = std::find_if(slot.overrides.begin(), slot.overrides.end(), [&](const Object::Override& entry) {
+				return entry.dispatcher == dispatcher && entry.method == current;
+			});
+			if (it != slot.overrides.end()) {
+				slot.overrides.erase(it);
+				break;
+			}
+		}
+
+		if (current == method)
+			break;
+		current = next;
+	}
+
+	// Restore dispatcher to the method below the removed range
+	if (restore)
+		*headp = restore;
+	else
+		self->methods.erase(dispatcher);
+}
+
+
 char* Object_inspect(const Object* self) {
 	if (!self)
 		return NULL;
@@ -226,7 +331,8 @@ char* Object_inspect(const Object* self) {
 	}
 	pos += size;
 
-	for (const Class* cls : self->classes) {
+	for (auto& slot : self->classes) {
+		const Class* cls = slot.cls;
 		void* data = NULL;
 		Object_class_check(self, cls, &data);
 		size = snprintf(s + pos, capacity - pos, " %s(%p)", cls->name, data);

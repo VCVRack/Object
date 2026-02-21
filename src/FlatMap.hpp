@@ -51,21 +51,28 @@ struct FlatMap {
 		delete[] oldTable;
 	}
 
+	/** Inserts or updates a key-value pair.
+	Key must be nonzero.
+	*/
 	void insert(const K& key, const V& value) {
-		// Grow at 50% load factor.
+		// Grow at 50% load factor
 		if (size * 2 >= capacity)
 			rehash(capacity * 2);
 
+		// Probe until we find the key or an empty slot
 		size_t i = hash(key);
-		while (table[i].key && table[i].key != key)
+		while (table[i].key && table[i].key != key) {
 			i = (i + 1) & mask;
+		}
 
 		if (!table[i].key)
 			size++;
-		table[i].key = key;
-		table[i].value = value;
+		table[i] = {key, value};
 	}
 
+	/** Returns a pointer to the value for a key, or NULL if not found.
+	The pointer can be used to update the value in place.
+	*/
 	V* find(const K& key) const {
 		size_t i = hash(key);
 		while (table[i].key) {
@@ -80,17 +87,26 @@ struct FlatMap {
 		return size == 0;
 	}
 
+	/** Removes a key-value pair.
+	Does nothing if the key is not found.
+	*/
 	void erase(const K& key) {
-		size_t i = hash(key);
-		while (table[i].key) {
+		// Find the entry
+		for (size_t i = hash(key); table[i].key; i = (i + 1) & mask) {
 			if (table[i].key == key) {
-				table[i].key = K{};
-				table[i].value = V{};
 				size--;
-				rehash(capacity);
+				// Shift later entries backward if they belong before their current position
+				for (size_t j = (i + 1) & mask; table[j].key; j = (j + 1) & mask) {
+					size_t home = hash(table[j].key);
+					// Check if the gap at i is between home and j (cyclically)
+					if (((i - home) & mask) < ((j - home) & mask)) {
+						table[i] = table[j];
+						i = j;
+					}
+				}
+				table[i] = {};
 				return;
 			}
-			i = (i + 1) & mask;
 		}
 	}
 };
