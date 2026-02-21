@@ -78,10 +78,10 @@ void Object_unref(const Object* self) {
 	if (!self->classes.empty()) {
 		Object_class_remove(const_cast<Object*>(self), self->classes.front().cls);
 	}
-	// Clear all maps so weak reference holders get clean failures
-	const_cast<Object*>(self)->datas.clear();
-	const_cast<Object*>(self)->methods.clear();
-	const_cast<Object*>(self)->supermethods.clear();
+	assert(self->classes.empty());
+	assert(self->datas.empty());
+	assert(self->methods.empty());
+	assert(self->supermethods.empty());
 	// Release the prevent-deletion weak reference, allowing the Object to be deleted if no other weak references remain.
 	Object_weak_unref(self);
 }
