@@ -12,10 +12,10 @@ struct ObjectRefT {
 
 	ObjectRefT() = default;
 
-	/** Transfers ownership of an Object from the caller.
-	Does not obtain a new reference.
-	*/
-	ObjectRefT(T* object) : object(object) {}
+	/** Obtains a new reference of an Object. */
+	ObjectRefT(T* object) : object(object) {
+		Object_ref(object);
+	}
 
 	/** Obtains a new reference of the Object from another ObjectRefT.
 	Both ObjectRefTs then own their own reference.
@@ -50,6 +50,7 @@ struct ObjectRefT {
 	}
 
 	ObjectRefT& operator=(T* object) {
+		Object_ref(object);
 		T* old = this->object;
 		this->object = object;
 		Object_unref(old);
@@ -107,10 +108,10 @@ struct ObjectRefT {
 		return object;
 	}
 
-	/** Obtains a new reference of the Object.
+	/** Adopts an Object, transferring ownership from the caller.
+	Does not obtain a new reference.
 	*/
-	static ObjectRefT obtain(T* object) {
-		Object_ref(object);
+	static ObjectRefT adopt(T* object) {
 		ObjectRefT ref;
 		ref.object = object;
 		return ref;
@@ -232,9 +233,9 @@ struct WeakObjectRefT {
 	Returns an ObjectRefT holding the strong reference, or an empty ObjectRefT if the object has been freed.
 	*/
 	ObjectRefT<T> lock() const {
-		if (Object_weak_lock(object))
-			return ObjectRefT<T>(object);
-		return ObjectRefT<T>();
+		if (!Object_weak_lock(object))
+			return ObjectRefT<T>();
+		return ObjectRefT<T>::adopt(object);
 	}
 
 	/** Attempts to obtain a strong reference and transfers it to the caller.
