@@ -148,19 +148,16 @@ ARGTYPES are the arguments such as `(const char* name, int loudness)`.
 Example:
 	METHOD_VIRTUAL(Animal, speak, void, (const char* name))
 
-Declares the following functions.
+Declares the following.
+
+Method function type:
+	typedef void Animal_speak_m(Object* self, const char* name);
 
 Virtual dispatch call:
-	void Animal_speak(Object* self, const char* name, int loudness);
+	void Animal_speak(Object* self, const char* name);
 
 Non-virtual (direct) call:
-	void Animal_speak_mdirect(Object* self, const char* name, int loudness);
-
-Method getter:
-	Animal_speak_m Animal_speak_mget(const Object* self);
-
-Method setter:
-	void Animal_speak_mset(Object* self, Animal_speak_m m);
+	void Animal_speak_mdirect(Object* self, const char* name);
 */
 #define METHOD_VIRTUAL(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	METHOD_INTERFACE(CLASS, METHOD, RETTYPE, ARGTYPES); \
@@ -221,9 +218,7 @@ Example:
 
 Declares the functions:
 	const char* Animal_name_get(const Object* self);
-	const char* Animal_name_get_mdirect(Object* self);
-	Animal_name_get_m Animal_name_get_mget(const Object* self);
-	void Animal_name_get_mset(Object* self, Animal_name_get_m m);
+	const char* Animal_name_get_mdirect(const Object* self);
 */
 #define GETTER_VIRTUAL(CLASS, PROP, TYPE) \
 	METHOD_CONST_VIRTUAL(CLASS, PROP##_get, TYPE, ())
@@ -236,7 +231,7 @@ Example:
 	SETTER(Animal, name, const char*)
 
 Declares the function:
-	void Animal_name_set(const Object* self, const char* name);
+	void Animal_name_set(Object* self, const char* name);
 */
 #define SETTER(CLASS, PROP, TYPE) \
 	METHOD(CLASS, PROP##_set, void, (TYPE PROP))
@@ -257,10 +252,8 @@ Example:
 	SETTER_VIRTUAL(Animal, name, const char*)
 
 Declares the functions:
-	void Animal_name_set(const Object* self, const char* name);
+	void Animal_name_set(Object* self, const char* name);
 	void Animal_name_set_mdirect(Object* self, const char* name);
-	Animal_name_set_m Animal_name_set_mget(const Object* self);
-	void Animal_name_set_mset(Object* self, Animal_name_set_m m);
 */
 #define SETTER_VIRTUAL(CLASS, PROP, TYPE) \
 	METHOD_VIRTUAL(CLASS, PROP##_set, void, (TYPE PROP))
@@ -380,7 +373,6 @@ Definition macros for source implementation files
 	const Class CLASS##_class = { \
 		#CLASS, \
 		CLASS##_free, \
-		0, \
 		{} \
 	};
 
@@ -417,10 +409,9 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_METHOD_OVERRIDE(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, CODE)
 
 
-// TODO Should `data` be const?
 #define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, CODE) \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = 0; \
+		const CLASS* data = 0; \
 		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
 			return RETDEFAULT; \
 		CODE \
@@ -631,7 +622,7 @@ Call macros
 
 
 #define PUSH_GETTER(SELF, SUPERCLASS, CLASS, PROP) \
-	PUSH_METHOD(SELF, SUPERCLASS, CLASS, PROP##_get); \
+	PUSH_METHOD(SELF, SUPERCLASS, CLASS, PROP##_get)
 
 
 #define PUSH_SETTER(SELF, SUPERCLASS, CLASS, PROP) \
@@ -697,7 +688,8 @@ typedef void Object_free_m(Object* self);
 
 typedef struct Class {
 	const char* name;
-	/** Frees data pointer and its contents, if non-NULL.
+	/** Frees data pointer and its contents.
+	May be NULL if the class has no data to free.
 	*/
 	Object_free_m* free;
 	// Reserved for future fields. Must be zero.
@@ -814,7 +806,7 @@ void Object_method_remove(Object* self, void* dispatcher, void* method);
 
 
 /** Generates a string listing all type names and data pointers of an object in order of specialization.
-Caller must free().
+Caller must free() the returned string.
 Not thread-safe with accessing classes.
 */
 char* Object_inspect(const Object* self);

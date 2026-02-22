@@ -77,7 +77,7 @@ DEFINE_METHOD_CONST(ObjectProxies, get, void*, (const void* type), NULL, {
 
 
 DEFINE_METHOD_CONST(ObjectProxies, bound_get, void*, (const void** type), NULL, {
-	ProxyData& bp = data->boundProxy;
+	const ProxyData& bp = data->boundProxy;
 	if (type)
 		*type = bp.type;
 	return bp.proxy;
