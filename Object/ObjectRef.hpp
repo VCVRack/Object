@@ -5,7 +5,6 @@
 
 /** Holds a strong reference to an Object using C++ RAII.
 T can be `Object` or `const Object`.
-TODO: Move to Object library.
 */
 template<typename T = Object>
 struct ObjectRefT {
@@ -16,7 +15,7 @@ struct ObjectRefT {
 	/** Transfers ownership of an Object from the caller.
 	Does not obtain a new reference.
 	*/
-	ObjectRefT(T* obj) : object(obj) {}
+	ObjectRefT(T* object) : object(object) {}
 
 	/** Obtains a new reference of the Object from another ObjectRefT.
 	Both ObjectRefTs then own their own reference.
@@ -50,9 +49,9 @@ struct ObjectRefT {
 		Object_unref(old);
 	}
 
-	ObjectRefT& operator=(T* obj) {
-		T* old = object;
-		object = obj;
+	ObjectRefT& operator=(T* object) {
+		T* old = this->object;
+		this->object = object;
 		Object_unref(old);
 		return *this;
 	}
@@ -93,20 +92,27 @@ struct ObjectRefT {
 		return *this;
 	}
 
-	/** Releases ownership of the Object and transfers ownership to the caller.
+	/** Releases the Object and transfers ownership to the caller.
 	*/
 	T* release() {
-		T* obj = object;
-		object = NULL;
-		return obj;
+		T* object = this->object;
+		this->object = NULL;
+		return object;
+	}
+
+	/** Returns the Object with a new reference.
+	*/
+	T* share() const {
+		Object_ref(object);
+		return object;
 	}
 
 	/** Obtains a new reference of the Object.
 	*/
-	static ObjectRefT obtain(T* obj) {
-		Object_ref(obj);
+	static ObjectRefT obtain(T* object) {
+		Object_ref(object);
 		ObjectRefT ref;
-		ref.object = obj;
+		ref.object = object;
 		return ref;
 	}
 
@@ -120,7 +126,6 @@ using ConstObjectRef = ObjectRefT<const Object>;
 /** Holds a weak reference to an Object using C++ RAII.
 A weak reference does not prevent the object from being freed, but can be converted to a strong ObjectRef if still alive with lock().
 T can be `Object` or `const Object`.
-TODO: Move to Object library.
 */
 template<typename T = Object>
 struct WeakObjectRefT {
@@ -129,7 +134,7 @@ struct WeakObjectRefT {
 	WeakObjectRefT() = default;
 
 	/** Obtains a weak reference of an Object. */
-	WeakObjectRefT(T* obj) : object(obj) {
+	WeakObjectRefT(T* object) : object(object) {
 		Object_weak_ref(object);
 	}
 
@@ -169,20 +174,20 @@ struct WeakObjectRefT {
 		Object_weak_unref(old);
 	}
 
-	WeakObjectRefT& operator=(T* obj) {
-		Object_weak_ref(obj);
-		T* old = object;
-		object = obj;
+	WeakObjectRefT& operator=(T* object) {
+		Object_weak_ref(object);
+		T* old = this->object;
+		this->object = object;
 		Object_weak_unref(old);
 		return *this;
 	}
 
 	template<typename U>
 	WeakObjectRefT& operator=(const ObjectRefT<U>& other) {
-		T* obj = other;
-		Object_weak_ref(obj);
-		T* old = object;
-		object = obj;
+		T* object = other;
+		Object_weak_ref(object);
+		T* old = this->object;
+		this->object = object;
 		Object_weak_unref(old);
 		return *this;
 	}
@@ -230,6 +235,15 @@ struct WeakObjectRefT {
 		if (Object_weak_lock(object))
 			return ObjectRefT<T>(object);
 		return ObjectRefT<T>();
+	}
+
+	/** Attempts to obtain a strong reference and transfers it to the caller.
+	Returns NULL if the Object has been freed.
+	*/
+	T* share() const {
+		if (!Object_weak_lock(object))
+			return NULL;
+		return object;
 	}
 
 	operator T*() const { return object; }
