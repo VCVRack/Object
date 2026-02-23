@@ -542,7 +542,7 @@ Usage:
 	struct Proxy_##PROP { \
 		TYPE get() const { GETTER } \
 	}; \
-	inline const GetterProxy<Proxy_##PROP> PROP
+	[[maybe_unused]] static const GetterProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a const global variable but wraps a free getter function.
@@ -623,7 +623,7 @@ Usage:
 		TYPE get() const { GETTER } \
 		void set(TYPE PROP) { SETTER } \
 	}; \
-	inline AccessorProxy<Proxy_##PROP> PROP
+	[[maybe_unused]] static AccessorProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a mutable global variable but wraps free getter/setter functions.
@@ -994,7 +994,7 @@ struct StringGetterProxy : GetterProxy<Base> {
 	struct Proxy_##PROP { \
 		std::string get() const { GETTER } \
 	}; \
-	inline const StringGetterProxy<Proxy_##PROP> PROP
+	[[maybe_unused]] static const StringGetterProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a `const std::string` global but wraps a `char*` getter where the caller must free(). */
@@ -1052,7 +1052,7 @@ struct StringAccessorProxy : AccessorProxy<Base> {
 		std::string get() const { GETTER } \
 		void set(std::string PROP) { SETTER } \
 	}; \
-	inline StringAccessorProxy<Proxy_##PROP> PROP
+	[[maybe_unused]] static StringAccessorProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a `std::string` global but wraps a `char*` getter (caller frees) and `const char*` setter. */
