@@ -955,11 +955,21 @@ Usage:
 	})
 
 
+/** Holds a std::string and implicitly converts to const char*. */
+struct CStrProxy {
+	std::string s;
+	operator const char*() const {
+		return s.c_str();
+	}
+};
+
+
 template <typename Base>
 struct StringGetterProxy : GetterProxy<Base> {
 	size_t size() const { return Base::get().size(); }
 	size_t length() const { return Base::get().length(); }
 	bool empty() const { return Base::get().empty(); }
+	CStrProxy c_str() const { return {Base::get()}; }
 
 	friend std::string operator+(const StringGetterProxy& a, const std::string& b) { return a.get() + b; }
 	friend std::string operator+(const std::string& a, const StringGetterProxy& b) { return a + b.get(); }
@@ -1015,6 +1025,7 @@ struct StringAccessorProxy : AccessorProxy<Base> {
 	size_t size() const { return Base::get().size(); }
 	size_t length() const { return Base::get().length(); }
 	bool empty() const { return Base::get().empty(); }
+	CStrProxy c_str() const { return {Base::get()}; }
 
 	friend std::string operator+(const StringAccessorProxy& a, const std::string& b) { return a.get() + b; }
 	friend std::string operator+(const std::string& a, const StringAccessorProxy& b) { return a + b.get(); }
