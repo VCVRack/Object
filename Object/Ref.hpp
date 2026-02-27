@@ -7,43 +7,43 @@
 T can be `Object` or `const Object`.
 */
 template<typename T = Object>
-struct ObjectRefT {
+struct RefT {
 	T* object = NULL;
 
-	ObjectRefT() = default;
+	RefT() = default;
 
 	/** Adopts an Object, transferring ownership from the caller.
 	Does not obtain a new reference.
 	*/
-	ObjectRefT(T* object) : object(object) {}
+	RefT(T* object) : object(object) {}
 
-	/** Obtains a new reference of the Object from another ObjectRefT.
-	Both ObjectRefTs then own their own reference.
+	/** Obtains a new reference of the Object from another RefT.
+	Both RefTs then own their own reference.
 	*/
-	ObjectRefT(const ObjectRefT& other) : object(other.object) {
+	RefT(const RefT& other) : object(other.object) {
 		Object_ref(object);
 	}
 
-	/** Obtains a new reference of the Object from another compatible ObjectRefT.
-	Allows implicit conversion from ObjectRef to ConstObjectRef.
+	/** Obtains a new reference of the Object from another compatible RefT.
+	Allows implicit conversion from Ref to ConstRef.
 	*/
 	template<typename U>
-	ObjectRefT(const ObjectRefT<U>& other) : object(other.object) {
+	RefT(const RefT<U>& other) : object(other.object) {
 		Object_ref(object);
 	}
 
-	/** Moves a reference from another ObjectRefT. */
-	ObjectRefT(ObjectRefT&& other) : object(other.object) {
+	/** Moves a reference from another RefT. */
+	RefT(RefT&& other) : object(other.object) {
 		other.object = NULL;
 	}
 
-	/** Moves a reference from another compatible ObjectRefT. */
+	/** Moves a reference from another compatible RefT. */
 	template<typename U>
-	ObjectRefT(ObjectRefT<U>&& other) : object(other.object) {
+	RefT(RefT<U>&& other) : object(other.object) {
 		other.object = NULL;
 	}
 
-	~ObjectRefT() {
+	~RefT() {
 		T* old = object;
 		object = NULL;
 		Object_unref(old);
@@ -52,14 +52,14 @@ struct ObjectRefT {
 	/** Adopts an Object, transferring ownership from the caller.
 	Does not obtain a new reference.
 	*/
-	ObjectRefT& operator=(T* object) {
+	RefT& operator=(T* object) {
 		T* old = this->object;
 		this->object = object;
 		Object_unref(old);
 		return *this;
 	}
 
-	ObjectRefT& operator=(const ObjectRefT& other) {
+	RefT& operator=(const RefT& other) {
 		Object_ref(other.object);
 		T* old = object;
 		object = other.object;
@@ -68,7 +68,7 @@ struct ObjectRefT {
 	}
 
 	template<typename U>
-	ObjectRefT& operator=(const ObjectRefT<U>& other) {
+	RefT& operator=(const RefT<U>& other) {
 		Object_ref(other.object);
 		T* old = object;
 		object = other.object;
@@ -76,7 +76,7 @@ struct ObjectRefT {
 		return *this;
 	}
 
-	ObjectRefT& operator=(ObjectRefT&& other) {
+	RefT& operator=(RefT&& other) {
 		if (this != &other) {
 			T* old = object;
 			object = other.object;
@@ -87,7 +87,7 @@ struct ObjectRefT {
 	}
 
 	template<typename U>
-	ObjectRefT& operator=(ObjectRefT<U>&& other) {
+	RefT& operator=(RefT<U>&& other) {
 		T* old = object;
 		object = other.object;
 		other.object = NULL;
@@ -115,70 +115,70 @@ struct ObjectRefT {
 
 	/** Obtains a new reference of an Object.
 	*/
-	static ObjectRefT obtain(T* object) {
+	static RefT obtain(T* object) {
 		Object_ref(object);
-		ObjectRefT ref;
+		RefT ref;
 		ref.object = object;
 		return ref;
 	}
 };
 
-using ObjectRef = ObjectRefT<Object>;
-using ConstObjectRef = ObjectRefT<const Object>;
+using Ref = RefT<Object>;
+using ConstRef = RefT<const Object>;
 
 
 /** Holds a weak reference to an Object using C++ RAII.
-A weak reference does not prevent the object from being freed, but can be converted to a strong ObjectRef if still alive with lock().
+A weak reference does not prevent the object from being freed, but can be converted to a strong Ref if still alive with lock().
 T can be `Object` or `const Object`.
 */
 template<typename T = Object>
-struct WeakObjectRefT {
+struct WeakRefT {
 	T* object = NULL;
 
-	WeakObjectRefT() = default;
+	WeakRefT() = default;
 
 	/** Obtains a weak reference of an Object. */
-	WeakObjectRefT(T* object) : object(object) {
+	WeakRefT(T* object) : object(object) {
 		Object_weak_ref(object);
 	}
 
-	/** Obtains a new weak reference of the Object from an ObjectRef. */
+	/** Obtains a new weak reference of the Object from an Ref. */
 	template<typename U>
-	WeakObjectRefT(const ObjectRefT<U>& other) : object(other.object) {
+	WeakRefT(const RefT<U>& other) : object(other.object) {
 		Object_weak_ref(object);
 	}
 
-	/** Obtains a new weak reference of the Object from another WeakObjectRefT. */
-	WeakObjectRefT(const WeakObjectRefT& other) : object(other.object) {
+	/** Obtains a new weak reference of the Object from another WeakRefT. */
+	WeakRefT(const WeakRefT& other) : object(other.object) {
 		Object_weak_ref(object);
 	}
 
-	/** Obtains a new weak reference of the Object from another compatible WeakObjectRefT.
-	Allows implicit conversion from WeakObjectRef to ConstWeakObjectRef.
+	/** Obtains a new weak reference of the Object from another compatible WeakRefT.
+	Allows implicit conversion from WeakRef to ConstWeakRef.
 	*/
 	template<typename U>
-	WeakObjectRefT(const WeakObjectRefT<U>& other) : object(other.object) {
+	WeakRefT(const WeakRefT<U>& other) : object(other.object) {
 		Object_weak_ref(object);
 	}
 
-	/** Moves a weak reference from another WeakObjectRefT. */
-	WeakObjectRefT(WeakObjectRefT&& other) : object(other.object) {
+	/** Moves a weak reference from another WeakRefT. */
+	WeakRefT(WeakRefT&& other) : object(other.object) {
 		other.object = NULL;
 	}
 
-	/** Moves a weak reference from another compatible WeakObjectRefT. */
+	/** Moves a weak reference from another compatible WeakRefT. */
 	template<typename U>
-	WeakObjectRefT(WeakObjectRefT<U>&& other) : object(other.object) {
+	WeakRefT(WeakRefT<U>&& other) : object(other.object) {
 		other.object = NULL;
 	}
 
-	~WeakObjectRefT() {
+	~WeakRefT() {
 		T* old = object;
 		object = NULL;
 		Object_weak_unref(old);
 	}
 
-	WeakObjectRefT& operator=(T* object) {
+	WeakRefT& operator=(T* object) {
 		Object_weak_ref(object);
 		T* old = this->object;
 		this->object = object;
@@ -187,7 +187,7 @@ struct WeakObjectRefT {
 	}
 
 	template<typename U>
-	WeakObjectRefT& operator=(const ObjectRefT<U>& other) {
+	WeakRefT& operator=(const RefT<U>& other) {
 		T* object = other;
 		Object_weak_ref(object);
 		T* old = this->object;
@@ -196,7 +196,7 @@ struct WeakObjectRefT {
 		return *this;
 	}
 
-	WeakObjectRefT& operator=(const WeakObjectRefT& other) {
+	WeakRefT& operator=(const WeakRefT& other) {
 		Object_weak_ref(other.object);
 		T* old = object;
 		object = other.object;
@@ -205,7 +205,7 @@ struct WeakObjectRefT {
 	}
 
 	template<typename U>
-	WeakObjectRefT& operator=(const WeakObjectRefT<U>& other) {
+	WeakRefT& operator=(const WeakRefT<U>& other) {
 		Object_weak_ref(other.object);
 		T* old = object;
 		object = other.object;
@@ -213,7 +213,7 @@ struct WeakObjectRefT {
 		return *this;
 	}
 
-	WeakObjectRefT& operator=(WeakObjectRefT&& other) {
+	WeakRefT& operator=(WeakRefT&& other) {
 		if (this != &other) {
 			T* old = object;
 			object = other.object;
@@ -224,7 +224,7 @@ struct WeakObjectRefT {
 	}
 
 	template<typename U>
-	WeakObjectRefT& operator=(WeakObjectRefT<U>&& other) {
+	WeakRefT& operator=(WeakRefT<U>&& other) {
 		T* old = object;
 		object = other.object;
 		other.object = NULL;
@@ -233,12 +233,12 @@ struct WeakObjectRefT {
 	}
 
 	/** Attempts to obtain a strong reference from this weak reference.
-	Returns an ObjectRefT holding the strong reference, or an empty ObjectRefT if the object has been freed.
+	Returns a RefT holding the strong reference, or an empty RefT if the object has been freed.
 	*/
-	ObjectRefT<T> lock() const {
+	RefT<T> lock() const {
 		if (!Object_weak_lock(object))
-			return ObjectRefT<T>();
-		return ObjectRefT<T>(object);
+			return RefT<T>();
+		return RefT<T>(object);
 	}
 
 	/** Attempts to obtain a strong reference and transfers it to the caller.
@@ -253,5 +253,5 @@ struct WeakObjectRefT {
 	operator T*() const { return object; }
 };
 
-using WeakObjectRef = WeakObjectRefT<Object>;
-using ConstWeakObjectRef = WeakObjectRefT<const Object>;
+using WeakRef = WeakRefT<Object>;
+using ConstWeakRef = WeakRefT<const Object>;
