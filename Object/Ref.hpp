@@ -250,7 +250,18 @@ struct WeakRefT {
 		return object;
 	}
 
-	operator T*() const { return object; }
+	explicit operator bool() const { return object; }
+	operator RefT<T>() const { return lock(); }
+
+	bool operator==(const WeakRefT& other) const { return object == other.object; }
+	bool operator!=(const WeakRefT& other) const { return object != other.object; }
+	bool operator<(const WeakRefT& other) const { return object < other.object; }
+	bool operator==(const T* other) const { return object == other; }
+	bool operator!=(const T* other) const { return object != other; }
+	bool operator<(const T* other) const { return object < other; }
+	friend bool operator==(const T* lhs, const WeakRefT& rhs) { return lhs == rhs.object; }
+	friend bool operator!=(const T* lhs, const WeakRefT& rhs) { return lhs != rhs.object; }
+	friend bool operator<(const T* lhs, const WeakRefT& rhs) { return lhs < rhs.object; }
 };
 
 using WeakRef = WeakRefT<Object>;
