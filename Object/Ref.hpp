@@ -8,8 +8,6 @@ T can be `Object` or `const Object`.
 */
 template<typename T = Object>
 struct RefT {
-	T* object = NULL;
-
 	RefT() = default;
 
 	/** Adopts an Object, transferring ownership from the caller.
@@ -121,6 +119,12 @@ struct RefT {
 		ref.object = object;
 		return ref;
 	}
+
+private:
+	T* object = NULL;
+
+	template<typename U> friend struct RefT;
+	template<typename U> friend struct WeakRefT;
 };
 
 using Ref = RefT<Object>;
@@ -133,8 +137,6 @@ T can be `Object` or `const Object`.
 */
 template<typename T = Object>
 struct WeakRefT {
-	T* object = NULL;
-
 	WeakRefT() = default;
 
 	/** Obtains a weak reference of an Object. */
@@ -262,6 +264,11 @@ struct WeakRefT {
 	friend bool operator==(const T* lhs, const WeakRefT& rhs) { return lhs == rhs.object; }
 	friend bool operator!=(const T* lhs, const WeakRefT& rhs) { return lhs != rhs.object; }
 	friend bool operator<(const T* lhs, const WeakRefT& rhs) { return lhs < rhs.object; }
+
+private:
+	T* object = NULL;
+
+	template<typename U> friend struct WeakRefT;
 };
 
 using WeakRef = WeakRefT<Object>;
