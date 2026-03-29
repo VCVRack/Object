@@ -116,14 +116,16 @@ public:
 		}
 	}
 
-	/** Gets the Object, preserving constness. */
+	/** Gets the Object, preserving constness.
+	Does not increment a reference for the caller.
+	*/
 	Object* self_get() { return self; }
 	const Object* self_get() const { return self; }
 
 	bool bound_get() const { return bound; }
 
 	size_t use_count() const {
-		return Object_refs_get(self_get());
+		return Object_refs_get(self);
 	}
 
 	/** Takes ownership of the Object.
