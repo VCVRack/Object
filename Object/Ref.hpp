@@ -111,13 +111,13 @@ struct RefT {
 		return object;
 	}
 
-	/** Obtains a new reference of an Object.
+	/** Obtains a reference from a borrowed pointer, replacing the current Object.
 	*/
-	static RefT obtain(T* object) {
+	void obtain(T* object) {
 		Object_ref(object);
-		RefT ref;
-		ref.object = object;
-		return ref;
+		T* old = this->object;
+		this->object = object;
+		Object_unref(old);
 	}
 
 private:
@@ -243,6 +243,18 @@ struct WeakRefT {
 		return RefT<T>(object);
 	}
 
+	/** Releases the weak reference and transfers a strong reference to the caller.
+	Returns NULL if the Object has been freed.
+	*/
+	T* release() {
+		if (!Object_weak_lock(object))
+			return NULL;
+		T* old = object;
+		object = NULL;
+		Object_weak_unref(old);
+		return old;
+	}
+
 	/** Attempts to obtain a strong reference and transfers it to the caller.
 	Returns NULL if the Object has been freed.
 	*/
@@ -250,6 +262,15 @@ struct WeakRefT {
 		if (!Object_weak_lock(object))
 			return NULL;
 		return object;
+	}
+
+	/** Obtains a new weak reference from a borrowed pointer, replacing the current Object.
+	*/
+	void obtain(T* object) {
+		Object_weak_ref(object);
+		T* old = this->object;
+		this->object = object;
+		Object_weak_unref(old);
 	}
 
 	explicit operator bool() const { return object; }
@@ -275,6 +296,19 @@ using WeakRef = WeakRefT<Object>;
 using ConstWeakRef = WeakRefT<const Object>;
 
 
+/** Obtains a new strong reference from a borrowed pointer.
+*/
+inline Ref obtain(Object* object) {
+	Object_ref(object);
+	return Ref(object);
+}
+
+inline ConstRef obtain(const Object* object) {
+	Object_ref(object);
+	return ConstRef(object);
+}
+
+
 #define DEFINE_REF_GETTER_AUTOMATIC(CLASS, PROP, TYPE) \
 	DEFINE_GETTER(CLASS, PROP, TYPE, NULL, { \
 		if (!data) \
@@ -286,8 +320,7 @@ using ConstWeakRef = WeakRefT<const Object>;
 	DEFINE_SETTER(CLASS, PROP, TYPE, { \
 		if (!data) \
 			return; \
-		Object_ref(PROP); \
-		data->PROP = PROP; \
+		data->PROP.obtain(PROP); \
 	})
 
 #define DEFINE_REF_ACCESSOR_AUTOMATIC(CLASS, PROP, TYPE) \
