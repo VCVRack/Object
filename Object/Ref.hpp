@@ -273,3 +273,23 @@ private:
 
 using WeakRef = WeakRefT<Object>;
 using ConstWeakRef = WeakRefT<const Object>;
+
+
+#define DEFINE_REF_GETTER_AUTOMATIC(CLASS, PROP, TYPE) \
+	DEFINE_GETTER(CLASS, PROP, TYPE, NULL, { \
+		if (!data) \
+			return NULL; \
+		return data->PROP.share(); \
+	})
+
+#define DEFINE_REF_SETTER_AUTOMATIC(CLASS, PROP, TYPE) \
+	DEFINE_SETTER(CLASS, PROP, TYPE, { \
+		if (!data) \
+			return; \
+		Object_ref(PROP); \
+		data->PROP = PROP; \
+	})
+
+#define DEFINE_REF_ACCESSOR_AUTOMATIC(CLASS, PROP, TYPE) \
+	DEFINE_REF_GETTER_AUTOMATIC(CLASS, PROP, TYPE) \
+	DEFINE_REF_SETTER_AUTOMATIC(CLASS, PROP, TYPE)
