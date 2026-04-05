@@ -20,7 +20,7 @@ Once an ObjectProxy subclass is defined, there are two ways to use it.
 
 You can obtain an ObjectProxy from an existing Object by calling `ObjectProxy::of<T>(object)`.
 This calls the constructor `T(Object)` unless an ObjectProxy of type T is cached.
-The ObjectProxy does not own the Object (unless you call `own()`), and the ObjectProxy is deleted when the Object is freed.
+The ObjectProxy does not own the Object (unless you call `adopt()`), and the ObjectProxy is deleted when the Object is freed.
 You do not need to delete the ObjectProxy, but it is safe to do so.
 
 ## Bound
@@ -64,7 +64,7 @@ struct ObjectProxy {
 		return of<T>(const_cast<Object*>(self));
 	}
 
-	/** Returns a proxy of type T and releases the Object.
+	/** Returns a proxy of type T, releasing the caller's reference.
 	*/
 	template <class T>
 	static T* of_release(Object* self) {
@@ -78,6 +78,25 @@ struct ObjectProxy {
 	template <class T>
 	static const T* of_release(const Object* self) {
 		return of_release<T>(const_cast<Object*>(self));
+	}
+
+	/** Returns a proxy of type T, transferring the caller's reference to the proxy.
+	*/
+	template <class T>
+	static T* of_adopt(Object* self) {
+		if (!self)
+			return NULL;
+		T* proxy = of<T>(self);
+		if (!proxy->owns)
+			proxy->owns = true;
+		else
+			Object_unref(self);
+		return proxy;
+	}
+
+	template <class T>
+	static const T* of_adopt(const Object* self) {
+		return of_adopt<T>(const_cast<Object*>(self));
 	}
 
 	/** Constructs an ObjectProxy with a new Object.
@@ -128,10 +147,10 @@ public:
 		return Object_refs_get(self);
 	}
 
-	/** Takes ownership of the Object.
+	/** Accepts ownership of the Object.
 	Increments the reference count. The proxy will unreference the Object when destroyed.
 	*/
-	void own() {
+	void adopt() {
 		if (owns)
 			return;
 		owns = true;
