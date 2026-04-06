@@ -601,6 +601,18 @@ Call macros
 */
 
 
+#define GLOBAL_CALL(PREFIX, NAME, ...) \
+	PREFIX##_##NAME(__VA_ARGS__)
+
+
+#define GLOBAL_GET(PREFIX, NAME, ...) \
+	PREFIX##_##NAME##_get(__VA_ARGS__)
+
+
+#define GLOBAL_SET(PREFIX, NAME, ...) \
+	PREFIX##_##NAME##_set(__VA_ARGS__)
+
+
 #define CREATE(CLASS, ...) \
 	CLASS##_create(__VA_ARGS__)
 
