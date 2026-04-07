@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stddef.h> // for size_t
-#include <stdint.h> // for uint32_t
+#include <stdint.h> // for int32_t, uint64_t, etc.
 #include <stdbool.h> // for bool, true, false
 
 
@@ -96,20 +95,20 @@ Declares:
 /** Declares a class Class struct and constructor function.
 
 CLASS is the class name such as `Animal`.
-INITARGS are the arguments of the create/specialize functions such as `(const char* name, int legs)`.
+INITARGS are the arguments of the create/specialize functions such as `(const char* name, int32_t legs)`.
 
 Superclasses are defined in your implementation, not in your header.
 
 Example:
-	CLASS(Animal, (const char* name, int legs))
+	CLASS(Animal, (const char* name, int32_t legs))
 
 Declares the following functions.
 
 Constructor:
-	Object* Animal_create(Object* self, const char* name, int legs);
+	Object* Animal_create(Object* self, const char* name, int32_t legs);
 
 Specialization function:
-	void Animal_specialize(Object* self, const char* name, int legs);
+	void Animal_specialize(Object* self, const char* name, int32_t legs);
 */
 #define CLASS(CLASS, INITARGS) \
 	extern const Class CLASS##_class; \
@@ -143,7 +142,7 @@ Similar to METHOD_VIRTUAL but doesn't define method getters/setters.
 CLASS is the class name such as `Animal`.
 METHOD is the method name such as `speak`.
 RETTYPE is the return value such as `void`.
-ARGTYPES are the arguments such as `(const char* name, int loudness)`.
+ARGTYPES are the arguments such as `(const char* name, int32_t loudness)`.
 
 Example:
 	METHOD_VIRTUAL(Animal, speak, void, (const char* name))
@@ -292,12 +291,12 @@ Example:
 	ARRAY_GETTER(Animal, child, Object*)
 
 Declares the functions:
-	size_t Animal_child_count_get(const Object* self);
-	Object* Animal_child_get(const Object* self, size_t index);
+	uint64_t Animal_child_count_get(const Object* self);
+	Object* Animal_child_get(const Object* self, uint64_t index);
 */
 #define ARRAY_GETTER(CLASS, PROP, TYPE) \
-	GETTER(CLASS, PROP##_count, size_t); \
-	METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index))
+	GETTER(CLASS, PROP##_count, uint64_t); \
+	METHOD_CONST(CLASS, PROP##_get, TYPE, (uint64_t index))
 
 
 /** Declares a non-virtual indexed getter/setter method pair for a class.
@@ -307,13 +306,13 @@ Example:
 	ARRAY_ACCESSOR(Animal, child, Object*)
 
 Declares the functions:
-	size_t Animal_child_count_get(const Object* self);
-	Object* Animal_child_get(const Object* self, size_t index);
-	void Animal_child_set(Object* self, size_t index, Object* element);
+	uint64_t Animal_child_count_get(const Object* self);
+	Object* Animal_child_get(const Object* self, uint64_t index);
+	void Animal_child_set(Object* self, uint64_t index, Object* element);
 */
 #define ARRAY_ACCESSOR(CLASS, PROP, TYPE) \
 	ARRAY_GETTER(CLASS, PROP, TYPE); \
-	METHOD(CLASS, PROP##_set, void, (size_t index, TYPE PROP))
+	METHOD(CLASS, PROP##_set, void, (uint64_t index, TYPE PROP))
 
 
 /** Declares a non-virtual indexed resizable getter/setter method pair for a class.
@@ -323,15 +322,15 @@ Example:
 	VECTOR_ACCESSOR(Animal, child, Object*)
 
 Declares the functions:
-	size_t Animal_child_count_get(const Object* self);
-	void Animal_child_count_set(Object* self, size_t index);
-	Object* Animal_child_get(const Object* self, size_t index);
-	void Animal_child_set(Object* self, size_t index, Object* element);
+	uint64_t Animal_child_count_get(const Object* self);
+	void Animal_child_count_set(Object* self, uint64_t index);
+	Object* Animal_child_get(const Object* self, uint64_t index);
+	void Animal_child_set(Object* self, uint64_t index, Object* element);
 
 */
 #define VECTOR_ACCESSOR(CLASS, PROP, TYPE) \
 	ARRAY_ACCESSOR(CLASS, PROP, TYPE); \
-	SETTER(CLASS, PROP##_count, size_t)
+	SETTER(CLASS, PROP##_count, uint64_t)
 
 
 /**************************************
@@ -536,18 +535,18 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 
 #define DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, ...) \
-	DEFINE_GETTER(CLASS, PROP##_count, size_t, 0, COUNTGETTER) \
-	DEFINE_METHOD_CONST(CLASS, PROP##_get, TYPE, (size_t index), DEFAULT, __VA_ARGS__)
+	DEFINE_GETTER(CLASS, PROP##_count, uint64_t, 0, COUNTGETTER) \
+	DEFINE_METHOD_CONST(CLASS, PROP##_get, TYPE, (uint64_t index), DEFAULT, __VA_ARGS__)
 
 
 #define DEFINE_ARRAY_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER, ...) \
 	DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER) \
-	DEFINE_METHOD(CLASS, PROP##_set, void, (size_t index, TYPE PROP), VOID, __VA_ARGS__)
+	DEFINE_METHOD(CLASS, PROP##_set, void, (uint64_t index, TYPE PROP), VOID, __VA_ARGS__)
 
 
 #define DEFINE_VECTOR_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, COUNTSETTER, GETTER, ...) \
 	DEFINE_ARRAY_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER, __VA_ARGS__) \
-	DEFINE_SETTER(CLASS, PROP##_count, size_t, COUNTSETTER)
+	DEFINE_SETTER(CLASS, PROP##_count, uint64_t, COUNTSETTER)
 
 
 /** Defines a free function (not tied to an Object class).
