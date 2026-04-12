@@ -67,7 +67,7 @@ struct ObjectProxy {
 	/** Returns a proxy of type T, releasing the caller's reference.
 	*/
 	template <class T>
-	static T* of_release(Object* self) {
+	static T* of_consume(Object* self) {
 		if (!self)
 			return NULL;
 		T* proxy = of<T>(self);
@@ -76,8 +76,8 @@ struct ObjectProxy {
 	}
 
 	template <class T>
-	static const T* of_release(const Object* self) {
-		return of_release<T>(const_cast<Object*>(self));
+	static const T* of_consume(const Object* self) {
+		return of_consume<T>(const_cast<Object*>(self));
 	}
 
 	/** Returns a proxy of type T, transferring the caller's reference to the proxy.
