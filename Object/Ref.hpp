@@ -19,7 +19,8 @@ struct RefT {
 	Both RefTs then own their own reference.
 	*/
 	RefT(const RefT& other) : object(other.object) {
-		Object_ref(object);
+		if (object)
+			Object_ref(object);
 	}
 
 	/** Obtains a new reference of the Object from another compatible RefT.
@@ -27,7 +28,8 @@ struct RefT {
 	*/
 	template<typename U>
 	RefT(const RefT<U>& other) : object(other.object) {
-		Object_ref(object);
+		if (object)
+			Object_ref(object);
 	}
 
 	/** Moves a reference from another RefT. */
@@ -44,7 +46,8 @@ struct RefT {
 	~RefT() {
 		T* old = object;
 		object = NULL;
-		Object_unref(old);
+		if (old)
+			Object_unref(old);
 	}
 
 	/** Adopts an Object, transferring ownership from the caller.
@@ -53,24 +56,29 @@ struct RefT {
 	RefT& operator=(T* object) {
 		T* old = this->object;
 		this->object = object;
-		Object_unref(old);
+		if (old)
+			Object_unref(old);
 		return *this;
 	}
 
 	RefT& operator=(const RefT& other) {
-		Object_ref(other.object);
+		if (other.object)
+			Object_ref(other.object);
 		T* old = object;
 		object = other.object;
-		Object_unref(old);
+		if (old)
+			Object_unref(old);
 		return *this;
 	}
 
 	template<typename U>
 	RefT& operator=(const RefT<U>& other) {
-		Object_ref(other.object);
+		if (other.object)
+			Object_ref(other.object);
 		T* old = object;
 		object = other.object;
-		Object_unref(old);
+		if (old)
+			Object_unref(old);
 		return *this;
 	}
 
@@ -79,7 +87,8 @@ struct RefT {
 			T* old = object;
 			object = other.object;
 			other.object = NULL;
-			Object_unref(old);
+			if (old)
+				Object_unref(old);
 		}
 		return *this;
 	}
@@ -89,7 +98,8 @@ struct RefT {
 		T* old = object;
 		object = other.object;
 		other.object = NULL;
-		Object_unref(old);
+		if (old)
+			Object_unref(old);
 		return *this;
 	}
 
@@ -107,17 +117,20 @@ struct RefT {
 	/** Returns the Object with a new reference.
 	*/
 	T* share() const {
-		Object_ref(object);
+		if (object)
+			Object_ref(object);
 		return object;
 	}
 
 	/** Obtains a reference from a borrowed pointer, replacing the current Object.
 	*/
 	void obtain(T* object) {
-		Object_ref(object);
+		if (object)
+			Object_ref(object);
 		T* old = this->object;
 		this->object = object;
-		Object_unref(old);
+		if (old)
+			Object_unref(old);
 	}
 
 private:
@@ -299,12 +312,14 @@ using ConstWeakRef = WeakRefT<const Object>;
 /** Obtains a new strong reference from a borrowed pointer.
 */
 inline Ref obtain(Object* object) {
-	Object_ref(object);
+	if (object)
+		Object_ref(object);
 	return Ref(object);
 }
 
 inline ConstRef obtain(const Object* object) {
-	Object_ref(object);
+	if (object)
+		Object_ref(object);
 	return ConstRef(object);
 }
 
