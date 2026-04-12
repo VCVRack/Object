@@ -68,7 +68,7 @@ struct ObjectProxy {
 		return of<T>(const_cast<Object*>(self));
 	}
 
-	/** Returns a proxy of type T from an owned pointer, releasing the reference.
+	/** Returns a proxy of type T from an owned pointer and decrements the reference count.
 	*/
 	template <class T>
 	static T* of_consume(Object* self) {
@@ -91,7 +91,7 @@ struct ObjectProxy {
 		if (!self)
 			return NULL;
 		T* proxy = of<T>(self);
-		if (!proxy->owns)
+		if (proxy && !proxy->owns)
 			proxy->owns = true;
 		else
 			Object_unref(self);
@@ -110,7 +110,7 @@ struct ObjectProxy {
 		if (!self)
 			return NULL;
 		T* proxy = of<T>(self);
-		if (!proxy->owns) {
+		if (proxy && !proxy->owns) {
 			proxy->owns = true;
 			Object_ref(self);
 		}
