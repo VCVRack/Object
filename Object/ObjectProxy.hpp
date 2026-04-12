@@ -34,7 +34,8 @@ struct ObjectProxy {
 	/** Returns a proxy of type T from a borrowed pointer.
 	If the Object has a bound C++ proxy that can be cast to T, returns that.
 	Otherwise, returns a cached proxy if one exists for type T.
-	Otherwise, creates a new T instance and caches it.
+	Otherwise, constructs a new T if T has a T(Object*) constructor.
+	Otherwise, returns NULL.
 	*/
 	template <class T>
 	static T* of(Object* self) {
@@ -54,9 +55,12 @@ struct ObjectProxy {
 		if (proxy)
 			return proxy;
 		// Create new proxy
-		proxy = new T(self);
-		ObjectProxies_add(self, proxy, &typeid(T), destructor);
-		return proxy;
+		if constexpr (std::is_constructible_v<T, Object*>) {
+			proxy = new T(self);
+			ObjectProxies_add(self, proxy, &typeid(T), destructor);
+			return proxy;
+		}
+		return NULL;
 	}
 
 	template <class T>
