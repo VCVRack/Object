@@ -31,10 +31,10 @@ When the Object's methods are called (such as `Animal_speak()`), your overridden
 See Animal.hpp for an example C++ class that wraps an Animal object.
 */
 struct ObjectProxy {
-	/** Returns a proxy of type T for the given Object.
+	/** Returns a proxy of type T from a borrowed pointer.
 	If the Object has a bound C++ proxy that can be cast to T, returns that.
 	Otherwise, returns a cached proxy if one exists for type T.
-	Otherwise, creates a new T instance and registers it with &typeid(T).
+	Otherwise, creates a new T instance and caches it.
 	*/
 	template <class T>
 	static T* of(Object* self) {
@@ -64,7 +64,7 @@ struct ObjectProxy {
 		return of<T>(const_cast<Object*>(self));
 	}
 
-	/** Returns a proxy of type T, releasing the caller's reference.
+	/** Returns a proxy of type T from an owned pointer, releasing the reference.
 	*/
 	template <class T>
 	static T* of_consume(Object* self) {
@@ -80,7 +80,7 @@ struct ObjectProxy {
 		return of_consume<T>(const_cast<Object*>(self));
 	}
 
-	/** Returns a proxy of type T, transferring the caller's reference to the proxy.
+	/** Returns an owning proxy of type T from an owned pointer.
 	*/
 	template <class T>
 	static T* of_adopt(Object* self) {
@@ -97,6 +97,25 @@ struct ObjectProxy {
 	template <class T>
 	static const T* of_adopt(const Object* self) {
 		return of_adopt<T>(const_cast<Object*>(self));
+	}
+
+	/** Returns an owning proxy of type T from a borrowed pointer, obtaining a reference.
+	*/
+	template <class T>
+	static T* of_obtain(Object* self) {
+		if (!self)
+			return NULL;
+		T* proxy = of<T>(self);
+		if (!proxy->owns) {
+			proxy->owns = true;
+			Object_ref(self);
+		}
+		return proxy;
+	}
+
+	template <class T>
+	static const T* of_obtain(const Object* self) {
+		return of_obtain<T>(const_cast<Object*>(self));
 	}
 
 	/** Constructs an ObjectProxy with a new Object.
