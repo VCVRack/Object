@@ -150,7 +150,7 @@ public:
 	/** Accepts ownership of the Object.
 	Increments the reference count. The proxy will unreference the Object when destroyed.
 	*/
-	void adopt() {
+	void adopt() const {
 		if (owns)
 			return;
 		owns = true;
@@ -161,11 +161,42 @@ public:
 	Decrements the reference count. The proxy will no longer unreference the Object when destroyed.
 	Note: If the Object has no other owners, this deletes the Object and ObjectProxy.
 	*/
-	void disown() {
+	void disown() const {
 		if (!owns)
 			return;
 		owns = false;
 		Object_unref(self);
+	}
+
+	/** Returns the Object with a new reference for the caller.
+	The proxy keeps its existing ownership state.
+	*/
+	Object* self_share() {
+		Object_ref(self);
+		return self;
+	}
+	const Object* self_share() const {
+		Object_ref(self);
+		return self;
+	}
+
+	/** Returns the Object, transferring the proxy's ownership to the caller.
+	If the proxy owns the Object, the caller receives that reference.
+	If the proxy does not own the Object, a new reference is obtained for the caller.
+	*/
+	Object* self_release() {
+		if (owns)
+			owns = false;
+		else
+			Object_ref(self);
+		return self;
+	}
+	const Object* self_release() const {
+		if (owns)
+			owns = false;
+		else
+			Object_ref(self);
+		return self;
 	}
 
 	/** Gets an ObjectProxy's Object, gracefully handling NULL. */
@@ -180,6 +211,30 @@ public:
 		return proxy->self;
 	}
 
+	/** Returns an ObjectProxy's Object with a new reference, gracefully handling NULL. */
+	static Object* self_share(ObjectProxy* proxy) {
+		if (!proxy)
+			return NULL;
+		return proxy->self_share();
+	}
+	static const Object* self_share(const ObjectProxy* proxy) {
+		if (!proxy)
+			return NULL;
+		return proxy->self_share();
+	}
+
+	/** Returns an ObjectProxy's Object with ownership transferred, gracefully handling NULL. */
+	static Object* self_release(ObjectProxy* proxy) {
+		if (!proxy)
+			return NULL;
+		return proxy->self_release();
+	}
+	static const Object* self_release(const ObjectProxy* proxy) {
+		if (!proxy)
+			return NULL;
+		return proxy->self_release();
+	}
+
 private:
 	static void destructor(void* p) {
 		ObjectProxy* proxy = static_cast<ObjectProxy*>(p);
@@ -190,7 +245,7 @@ private:
 
 	Object* self;
 	bool bound;
-	bool owns;
+	mutable bool owns;
 };
 
 
