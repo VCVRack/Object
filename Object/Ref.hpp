@@ -292,12 +292,21 @@ struct WeakRefT {
 	bool operator==(const WeakRefT& other) const { return object == other.object; }
 	bool operator!=(const WeakRefT& other) const { return object != other.object; }
 	bool operator<(const WeakRefT& other) const { return object < other.object; }
+	bool operator>(const WeakRefT& other) const { return object > other.object; }
+	bool operator<=(const WeakRefT& other) const { return object <= other.object; }
+	bool operator>=(const WeakRefT& other) const { return object >= other.object; }
 	bool operator==(const T* other) const { return object == other; }
 	bool operator!=(const T* other) const { return object != other; }
 	bool operator<(const T* other) const { return object < other; }
+	bool operator>(const T* other) const { return object > other; }
+	bool operator<=(const T* other) const { return object <= other; }
+	bool operator>=(const T* other) const { return object >= other; }
 	friend bool operator==(const T* lhs, const WeakRefT& rhs) { return lhs == rhs.object; }
 	friend bool operator!=(const T* lhs, const WeakRefT& rhs) { return lhs != rhs.object; }
 	friend bool operator<(const T* lhs, const WeakRefT& rhs) { return lhs < rhs.object; }
+	friend bool operator>(const T* lhs, const WeakRefT& rhs) { return lhs > rhs.object; }
+	friend bool operator<=(const T* lhs, const WeakRefT& rhs) { return lhs <= rhs.object; }
+	friend bool operator>=(const T* lhs, const WeakRefT& rhs) { return lhs >= rhs.object; }
 
 private:
 	T* object = NULL;
