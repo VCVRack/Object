@@ -356,3 +356,23 @@ Obtains a reference from the given borrowed Object*.
 #define DEFINE_REF_ACCESSOR_AUTOMATIC(CLASS, PROP, TYPE) \
 	DEFINE_REF_GETTER_AUTOMATIC(CLASS, PROP, TYPE) \
 	DEFINE_REF_SETTER_AUTOMATIC(CLASS, PROP, TYPE)
+
+/** Similar to DEFINE_GLOBAL_GETTER_AUTOMATIC() from Object.h for Object* globals stored as Ref or WeakRef.
+Returns a new Object* reference for the caller.
+*/
+#define DEFINE_GLOBAL_REF_GETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_GETTER(PREFIX, NAME, TYPE, { \
+		return NAME.share(); \
+	})
+
+/** Similar to DEFINE_GLOBAL_SETTER_AUTOMATIC() from Object.h for Object* globals stored as Ref or WeakRef.
+Obtains a reference from the given borrowed Object*.
+*/
+#define DEFINE_GLOBAL_REF_SETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+	EXTERNC void PREFIX##_##NAME##_set(TYPE NAME##_) { \
+		NAME.obtain(NAME##_); \
+	}
+
+#define DEFINE_GLOBAL_REF_ACCESSOR_AUTOMATIC(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_REF_GETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_REF_SETTER_AUTOMATIC(PREFIX, NAME, TYPE)
