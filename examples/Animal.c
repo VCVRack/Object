@@ -25,9 +25,9 @@ struct Animal {
 
 DEFINE_CLASS(Animal, (), (), {
 	Animal* data = (Animal*) calloc(1, sizeof(Animal));
-	PUSH_CLASS(self, Animal, data);
-	PUSH_METHOD(self, Animal, Animal, speak);
-	PUSH_ACCESSOR(self, Animal, Animal, legs);
+	CLASS_PUSH(self, Animal, data);
+	METHOD_PUSH(self, Animal, Animal, speak);
+	ACCESSOR_PUSH(self, Animal, Animal, legs);
 }, {
 	printf("bye Animal\n");
 	free(data);
@@ -58,11 +58,11 @@ DEFINE_CLASS(Dog, (const char* name), (name), {
 	SPECIALIZE(self, Animal);
 
 	Dog* data = (Dog*) calloc(1, sizeof(Dog));
-	PUSH_CLASS(self, Dog, data);
+	CLASS_PUSH(self, Dog, data);
 
-	PUSH_METHOD(self, Animal, Dog, speak);
-	PUSH_ACCESSOR(self, Animal, Dog, legs);
-	PUSH_ACCESSOR(self, Dog, Dog, name);
+	METHOD_PUSH(self, Animal, Dog, speak);
+	ACCESSOR_PUSH(self, Animal, Dog, legs);
+	ACCESSOR_PUSH(self, Dog, Dog, name);
 
 	SET(self, Animal, legs, 4);
 	SET(self, Dog, name, name);
@@ -80,11 +80,11 @@ DEFINE_METHOD_CONST_OVERRIDE(Dog, speak, void, (), VOID, {
 
 // This example is a bit pointless, but it demonstrates how to call the superclass' method from an overridden method.
 DEFINE_ACCESSOR_OVERRIDE(Dog, legs, int, -1, {
-	return GET_SUPER(self, Animal, Dog, legs);
+	return SUPER_GET(self, Animal, Dog, legs);
 }, {
 	if (legs > 4)
 		legs = 4;
-	SET_SUPER(self, Animal, Dog, legs, legs);
+	SUPER_SET(self, Animal, Dog, legs, legs);
 })
 
 

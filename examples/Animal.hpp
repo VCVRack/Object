@@ -25,7 +25,7 @@ struct Animal : ObjectProxy {
 
 	virtual void speak() const {
 		if (original)
-			CALL_DIRECT(self, Animal, speak);
+			DIRECT_CALL(self, Animal, speak);
 		else
 			CALL(self, Animal, speak);
 	}
@@ -49,7 +49,7 @@ struct Dog : Animal {
 
 	void speak() const override {
 		if (original)
-			CALL_DIRECT(self, Dog, speak);
+			DIRECT_CALL(self, Dog, speak);
 		else
 			CALL(self, Animal, speak);
 	}

@@ -138,28 +138,24 @@ bool Object_weak_lock(const Object* self) {
 
 
 void Object_class_push(Object* self, const Class* cls, void* data) {
-	if (!self)
+	if (!self || !cls || !data)
 		return;
-	assert(cls);
-	// Return if class already existed
+	// Fail silently if class already existed
 	if (self->datas.find(cls))
 		return;
-	// Set class data
 	self->datas.insert(cls, data);
 	self->classes.push_back({cls, {}});
 }
 
 
-bool Object_class_check(const Object* self, const Class* cls, void** dataOut) {
+void* Object_class_get(const Object* self, const Class* cls) {
 	// It is safe to not check cls, for performance
 	if (!self)
-		return false;
-	void** data = self->datas.find(cls);
-	if (!data)
-		return false;
-	if (dataOut)
-		*dataOut = *data;
-	return true;
+		return NULL;
+	void** slot = self->datas.find(cls);
+	if (!slot)
+		return NULL;
+	return *slot;
 }
 
 
@@ -331,8 +327,7 @@ char* Object_inspect(const Object* self) {
 
 	for (auto& slot : self->classes) {
 		const Class* cls = slot.cls;
-		void* data = NULL;
-		Object_class_check(self, cls, &data);
+		void* data = Object_class_get(self, cls);
 		size = snprintf(s + pos, capacity - pos, " %s(%p)", cls->name, data);
 		if (size < 0)
 			break;

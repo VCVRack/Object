@@ -21,7 +21,7 @@ struct ObjectProxies {
 
 DEFINE_CLASS(ObjectProxies, (), (), {
 	ObjectProxies* data = new ObjectProxies;
-	PUSH_CLASS(self, ObjectProxies, data);
+	CLASS_PUSH(self, ObjectProxies, data);
 }, {
 	// Destroy proxies in reverse order to allow re-entrant remove() calls
 	while (!data->proxies.empty()) {

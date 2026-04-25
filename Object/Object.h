@@ -342,7 +342,7 @@ Definition macros for source implementation files
 	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
 		if (!self) \
 			return; \
-		if (Object_class_check(self, &CLASS##_class, 0)) \
+		if (Object_class_get(self, &CLASS##_class)) \
 			return; \
 		__VA_ARGS__ \
 	} \
@@ -357,8 +357,8 @@ Definition macros for source implementation files
 	static void CLASS##_free(Object* self) { \
 		if (!self) \
 			return; \
-		CLASS* data = 0; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
+		CLASS* data = (CLASS*) Object_class_get(self, &CLASS##_class); \
+		if (!data) \
 			return; \
 		__VA_ARGS__ \
 	}
@@ -382,8 +382,8 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 */
 #define DEFINE_METHOD(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, ...) \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = 0; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
+		CLASS* data = (CLASS*) Object_class_get(self, &CLASS##_class); \
+		if (!data) \
 			return RETDEFAULT; \
 		__VA_ARGS__ \
 	}
@@ -410,8 +410,8 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, ...) \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
-		const CLASS* data = 0; \
-		if (!Object_class_check(self, &CLASS##_class, (void**) &data)) \
+		const CLASS* data = (const CLASS*) Object_class_get(self, &CLASS##_class); \
+		if (!data) \
 			return RETDEFAULT; \
 		__VA_ARGS__ \
 	}
@@ -620,40 +620,44 @@ Call macros
 	CLASS##_specialize(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define IS(SELF, CLASS) \
-	Object_class_check(SELF, &CLASS##_class, 0)
-
-
-#define PUSH_CLASS(SELF, CLASS, DATA) \
+#define CLASS_PUSH(SELF, CLASS, DATA) \
 	Object_class_push(SELF, &CLASS##_class, DATA)
 
 
-#define PUSH_METHOD(SELF, SUPERCLASS, CLASS, METHOD) \
+#define CLASS_GET(SELF, CLASS) \
+	((CLASS*) Object_class_get(SELF, &CLASS##_class))
+
+
+#define IS(SELF, CLASS) \
+	(Object_class_get(SELF, &CLASS##_class) != 0)
+
+
+#define METHOD_PUSH(SELF, SUPERCLASS, CLASS, METHOD) \
 	Object_method_push(SELF, (void*) &SUPERCLASS##_##METHOD, (void*) &CLASS##_##METHOD##_mdirect)
 
 
-#define PUSH_GETTER(SELF, SUPERCLASS, CLASS, PROP) \
-	PUSH_METHOD(SELF, SUPERCLASS, CLASS, PROP##_get)
+#define GETTER_PUSH(SELF, SUPERCLASS, CLASS, PROP) \
+	METHOD_PUSH(SELF, SUPERCLASS, CLASS, PROP##_get)
 
 
-#define PUSH_SETTER(SELF, SUPERCLASS, CLASS, PROP) \
-	PUSH_METHOD(SELF, SUPERCLASS, CLASS, PROP##_set)
+#define SETTER_PUSH(SELF, SUPERCLASS, CLASS, PROP) \
+	METHOD_PUSH(SELF, SUPERCLASS, CLASS, PROP##_set)
 
 
-#define PUSH_ACCESSOR(SELF, SUPERCLASS, CLASS, PROP) \
-	PUSH_GETTER(SELF, SUPERCLASS, CLASS, PROP); \
-	PUSH_SETTER(SELF, SUPERCLASS, CLASS, PROP)
+#define ACCESSOR_PUSH(SELF, SUPERCLASS, CLASS, PROP) \
+	GETTER_PUSH(SELF, SUPERCLASS, CLASS, PROP); \
+	SETTER_PUSH(SELF, SUPERCLASS, CLASS, PROP)
 
 
 #define CALL(SELF, CLASS, METHOD, ...) \
 	CLASS##_##METHOD(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define CALL_DIRECT(SELF, CLASS, METHOD, ...) \
+#define DIRECT_CALL(SELF, CLASS, METHOD, ...) \
 	CLASS##_##METHOD##_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define CALL_SUPER(SELF, SUPERCLASS, CLASS, METHOD, ...) \
+#define SUPER_CALL(SELF, SUPERCLASS, CLASS, METHOD, ...) \
 	((SUPERCLASS##_##METHOD##_m*) Object_supermethod_get(SELF, (void*) &CLASS##_##METHOD##_mdirect))(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
@@ -661,27 +665,24 @@ Call macros
 	CLASS##_##PROP##_get(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define GET_DIRECT(SELF, CLASS, PROP, ...) \
+#define DIRECT_GET(SELF, CLASS, PROP, ...) \
 	CLASS##_##PROP##_get_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define GET_SUPER(SELF, SUPERCLASS, CLASS, PROP, ...) \
-	CALL_SUPER(SELF, SUPERCLASS, CLASS, PROP##_get __VA_OPT__(,) __VA_ARGS__)
+#define SUPER_GET(SELF, SUPERCLASS, CLASS, PROP, ...) \
+	SUPER_CALL(SELF, SUPERCLASS, CLASS, PROP##_get __VA_OPT__(,) __VA_ARGS__)
 
 
 #define SET(SELF, CLASS, PROP, ...) \
 	CLASS##_##PROP##_set(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define SET_DIRECT(SELF, CLASS, PROP, ...) \
+#define DIRECT_SET(SELF, CLASS, PROP, ...) \
 	CLASS##_##PROP##_set_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define SET_SUPER(SELF, SUPERCLASS, CLASS, PROP, ...) \
-	CALL_SUPER(SELF, SUPERCLASS, CLASS, PROP##_set __VA_OPT__(,) __VA_ARGS__)
-
-
-#define CLASS_CHECK(SELF, CLASS, DATA) Object_class_check(SELF, &CLASS##_class, (void**) &DATA)
+#define SUPER_SET(SELF, SUPERCLASS, CLASS, PROP, ...) \
+	SUPER_CALL(SELF, SUPERCLASS, CLASS, PROP##_set __VA_OPT__(,) __VA_ARGS__)
 
 
 /**************************************
@@ -722,6 +723,7 @@ Each reference must be unreferenced with Object_unref() to prevent a memory leak
 Thread-safe.
 Does nothing if self is NULL.
 */
+__attribute__((hot))
 void Object_ref(const Object* self);
 
 
@@ -731,6 +733,7 @@ Object should be considered invalid after calling this function.
 Thread-safe.
 Does nothing if self is NULL.
 */
+__attribute__((hot))
 void Object_unref(const Object* self);
 
 
@@ -765,22 +768,27 @@ uint32_t Object_weak_refs_get(const Object* self);
 If successful, the caller must unreference the strong reference with Object_unref().
 Thread-safe.
 */
+__attribute__((hot))
 bool Object_weak_lock(const Object* self);
 
 
+/** Sentinel data pointer for classes without per-instance data. Must not be dereferenced. */
+#define OBJECT_NO_DATA ((void*) 1)
+
+
 /** Assigns an object a class type with a data pointer.
+data must not be NULL. Pass OBJECT_NO_DATA for classes without per-instance data.
 Does nothing if self is NULL.
 Not thread-safe with accessing classes or calling methods.
 */
 void Object_class_push(Object* self, const Class* cls, void* data);
 
 
-/** Returns true if an object has a class.
-If so, and dataOut is non-NULL, sets the data pointer.
-Returns false if self is NULL.
+/** Returns the data pointer for self's class cls, or NULL if self is not of class cls.
 Not thread-safe with accessing classes or calling methods.
 */
-bool Object_class_check(const Object* self, const Class* cls, void** dataOut);
+__attribute__((pure, hot))
+void* Object_class_get(const Object* self, const Class* cls);
 
 
 /** Removes a class and all classes above it from an object.
@@ -800,12 +808,14 @@ void Object_method_push(Object* self, void* dispatcher, void* method);
 /** Returns the direct method for the given dispatch method.
 Returns NULL if no method has been pushed for the dispatcher.
 */
+__attribute__((pure, hot))
 void* Object_method_get(const Object* self, void* dispatcher);
 
 
 /** Returns the method that was overridden by the given method.
 Returns NULL if the method is the first in the chain, or does not exist.
 */
+__attribute__((pure, hot))
 void* Object_supermethod_get(const Object* self, void* method);
 
 
