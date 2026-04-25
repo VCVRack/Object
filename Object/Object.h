@@ -342,7 +342,7 @@ Definition macros for source implementation files
 	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
 		if (!self) \
 			return; \
-		if (Object_class_get(self, &CLASS##_class)) \
+		if (Object_data_get(self, &CLASS##_class)) \
 			return; \
 		__VA_ARGS__ \
 	} \
@@ -357,7 +357,7 @@ Definition macros for source implementation files
 	static void CLASS##_free(Object* self) { \
 		if (!self) \
 			return; \
-		CLASS* data = (CLASS*) Object_class_get(self, &CLASS##_class); \
+		CLASS* data = (CLASS*) Object_data_get(self, &CLASS##_class); \
 		if (!data) \
 			return; \
 		__VA_ARGS__ \
@@ -382,7 +382,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 */
 #define DEFINE_METHOD(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, ...) \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = (CLASS*) Object_class_get(self, &CLASS##_class); \
+		CLASS* data = (CLASS*) Object_data_get(self, &CLASS##_class); \
 		if (!data) \
 			return RETDEFAULT; \
 		__VA_ARGS__ \
@@ -410,7 +410,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, ...) \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
-		const CLASS* data = (const CLASS*) Object_class_get(self, &CLASS##_class); \
+		const CLASS* data = (const CLASS*) Object_data_get(self, &CLASS##_class); \
 		if (!data) \
 			return RETDEFAULT; \
 		__VA_ARGS__ \
@@ -624,12 +624,12 @@ Call macros
 	Object_class_push(SELF, &CLASS##_class, DATA)
 
 
-#define CLASS_GET(SELF, CLASS) \
-	((CLASS*) Object_class_get(SELF, &CLASS##_class))
+#define DATA_GET(SELF, CLASS) \
+	((CLASS*) Object_data_get(SELF, &CLASS##_class))
 
 
 #define IS(SELF, CLASS) \
-	(Object_class_get(SELF, &CLASS##_class) != 0)
+	(Object_data_get(SELF, &CLASS##_class) != 0)
 
 
 #define METHOD_PUSH(SELF, SUPERCLASS, CLASS, METHOD) \
@@ -788,7 +788,7 @@ void Object_class_push(Object* self, const Class* cls, void* data);
 Not thread-safe with accessing classes or calling methods.
 */
 __attribute__((pure, hot))
-void* Object_class_get(const Object* self, const Class* cls);
+void* Object_data_get(const Object* self, const Class* cls);
 
 
 /** Removes a class and all classes above it from an object.

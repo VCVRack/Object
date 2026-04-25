@@ -148,7 +148,7 @@ void Object_class_push(Object* self, const Class* cls, void* data) {
 }
 
 
-void* Object_class_get(const Object* self, const Class* cls) {
+void* Object_data_get(const Object* self, const Class* cls) {
 	// It is safe to not check cls, for performance
 	if (!self)
 		return NULL;
@@ -327,7 +327,7 @@ char* Object_inspect(const Object* self) {
 
 	for (auto& slot : self->classes) {
 		const Class* cls = slot.cls;
-		void* data = Object_class_get(self, cls);
+		void* data = Object_data_get(self, cls);
 		size = snprintf(s + pos, capacity - pos, " %s(%p)", cls->name, data);
 		if (size < 0)
 			break;
