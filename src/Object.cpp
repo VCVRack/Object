@@ -15,11 +15,36 @@ Feel free to rewrite this in other languages that can export C symbols.
 #include "FlatMap.hpp"
 
 
+#define LENGTHOF(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+
 /** Size of Class is part of the ABI. */
 static_assert(sizeof(Class) == 256, "Object Class size must be 256 bytes");
 
 
-struct Object {
+struct alignas(64) Object {
+	// dispatch function pointer -> method function pointer
+	// 14 bytes, 2 bytes padding
+	FlatMap<void*, void*> methods;
+
+	// 16 bytes
+	struct ClassData {
+		const Class* cls;
+		void* data;
+	};
+	// 16*3 = 48 bytes
+	ClassData inlineDatas[3] = {};
+
+	// End of 64-byte cache line 0
+
+	// Packed reference counts. low 32 bits = strong refs, high 32 bits = weak refs
+	std::atomic<uint64_t> refs{1};
+
+	// Overflow for inlineDatas
+	FlatMap<const Class*, void*> datas;
+	// method function pointer -> overridden method function pointer
+	FlatMap<void*, void*> supermethods;
+
 	struct Override {
 		void* dispatcher;
 		void* method;
@@ -30,15 +55,6 @@ struct Object {
 	};
 	// Classes ordered by specialization
 	std::vector<ClassSlot> classes;
-	// Class -> data pointer
-	FlatMap<const Class*, void*> datas;
-	// dispatch function pointer -> method function pointer
-	FlatMap<void*, void*> methods;
-	// method function pointer -> overridden method function pointer
-	FlatMap<void*, void*> supermethods;
-
-	// Packed reference counts: low 32 bits = strong refs, high 32 bits = weak refs
-	std::atomic<uint64_t> refs{1};
 };
 
 
@@ -141,9 +157,25 @@ void Object_class_push(Object* self, const Class* cls, void* data) {
 	if (!self || !cls || !data)
 		return;
 	// Fail silently if class already existed
+	for (size_t i = 0; i < LENGTHOF(self->inlineDatas); i++) {
+		if (self->inlineDatas[i].cls == cls)
+			return;
+	}
 	if (self->datas.find(cls))
 		return;
-	self->datas.insert(cls, data);
+	// Insert class and data in first empty inline slot, or in map if full
+	bool inserted = false;
+	for (size_t i = 0; i < LENGTHOF(self->inlineDatas); i++) {
+		if (!self->inlineDatas[i].cls) {
+			self->inlineDatas[i].cls = cls;
+			self->inlineDatas[i].data = data;
+			inserted = true;
+			break;
+		}
+	}
+	if (!inserted)
+		self->datas.insert(cls, data);
+	// Add class to vector
 	self->classes.push_back({cls, {}});
 }
 
@@ -152,6 +184,12 @@ void* Object_data_get(const Object* self, const Class* cls) {
 	// It is safe to not check cls, for performance
 	if (!self)
 		return NULL;
+	// Scan inline classes. Empty slots have cls==NULL so a real lookup never matches them.
+	for (size_t i = 0; i < LENGTHOF(self->inlineDatas); i++) {
+		if (self->inlineDatas[i].cls == cls)
+			return self->inlineDatas[i].data;
+	}
+	// Find in map
 	void** slot = self->datas.find(cls);
 	if (!slot)
 		return NULL;
@@ -199,7 +237,17 @@ void Object_class_remove(Object* self, const Class* cls) {
 			}
 		}
 
-		self->datas.erase(c);
+		// Remove class from inline array, or map
+		bool removed = false;
+		for (size_t i = 0; i < LENGTHOF(self->inlineDatas); i++) {
+			if (self->inlineDatas[i].cls == c) {
+				self->inlineDatas[i] = {};
+				removed = true;
+				break;
+			}
+		}
+		if (!removed)
+			self->datas.erase(c);
 		self->classes.pop_back();
 	}
 }
