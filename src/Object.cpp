@@ -23,27 +23,19 @@ static_assert(sizeof(Class) == 256, "Object Class size must be 256 bytes");
 
 
 struct alignas(64) Object {
+	// Cache line 0
+
 	// dispatch function pointer -> method function pointer
-	// 14 bytes, 2 bytes padding
 	FlatMap<void*, void*> methods;
-
-	// 16 bytes
-	struct ClassData {
-		const Class* cls;
-		void* data;
-	};
-	// 16*3 = 48 bytes
-	ClassData inlineDatas[3] = {};
-
-	// End of 64-byte cache line 0
-
-	// Packed reference counts. low 32 bits = strong refs, high 32 bits = weak refs
-	std::atomic<uint64_t> refs{1};
-
-	// Overflow for inlineDatas
+	// Class -> data pointer
 	FlatMap<const Class*, void*> datas;
 	// method function pointer -> overridden method function pointer
 	FlatMap<void*, void*> supermethods;
+	// Packed reference counts. low 32 bits = strong refs, high 32 bits = weak refs
+	std::atomic<uint64_t> refs{1};
+	uint64_t pad0 = 0;
+
+	// Cache line 1+
 
 	struct Override {
 		void* dispatcher;
@@ -157,25 +149,9 @@ void Object_class_push(Object* self, const Class* cls, void* data) {
 	if (!self || !cls || !data)
 		return;
 	// Fail silently if class already existed
-	for (size_t i = 0; i < LENGTHOF(self->inlineDatas); i++) {
-		if (self->inlineDatas[i].cls == cls)
-			return;
-	}
 	if (self->datas.find(cls))
 		return;
-	// Insert class and data in first empty inline slot, or in map if full
-	bool inserted = false;
-	for (size_t i = 0; i < LENGTHOF(self->inlineDatas); i++) {
-		if (!self->inlineDatas[i].cls) {
-			self->inlineDatas[i].cls = cls;
-			self->inlineDatas[i].data = data;
-			inserted = true;
-			break;
-		}
-	}
-	if (!inserted)
-		self->datas.insert(cls, data);
-	// Add class to vector
+	self->datas.insert(cls, data);
 	self->classes.push_back({cls, {}});
 }
 
@@ -184,12 +160,6 @@ void* Object_data_get(const Object* self, const Class* cls) {
 	// It is safe to not check cls, for performance
 	if (!self)
 		return NULL;
-	// Scan inline classes. Empty slots have cls==NULL so a real lookup never matches them.
-	for (size_t i = 0; i < LENGTHOF(self->inlineDatas); i++) {
-		if (self->inlineDatas[i].cls == cls)
-			return self->inlineDatas[i].data;
-	}
-	// Find in map
 	void** slot = self->datas.find(cls);
 	if (!slot)
 		return NULL;
@@ -237,17 +207,7 @@ void Object_class_remove(Object* self, const Class* cls) {
 			}
 		}
 
-		// Remove class from inline array, or map
-		bool removed = false;
-		for (size_t i = 0; i < LENGTHOF(self->inlineDatas); i++) {
-			if (self->inlineDatas[i].cls == c) {
-				self->inlineDatas[i] = {};
-				removed = true;
-				break;
-			}
-		}
-		if (!removed)
-			self->datas.erase(c);
+		self->datas.erase(c);
 		self->classes.pop_back();
 	}
 }
