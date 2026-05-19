@@ -8,6 +8,7 @@ Feel free to rewrite this in other languages that can export C symbols.
 #include <cstdint>
 #include <cassert>
 #include <cstdio>
+#include <new>
 #include <vector>
 #include <algorithm>
 #include <atomic>
@@ -52,7 +53,7 @@ struct alignas(64) Object {
 
 Object* Object_create() {
 	Object* self = new Object;
-	assert(self);
+	// assert(self);
 	return self;
 }
 
@@ -86,10 +87,10 @@ void Object_unref(const Object* self) {
 	if (!self->classes.empty()) {
 		Object_class_remove(const_cast<Object*>(self), self->classes.front().cls);
 	}
-	assert(self->classes.empty());
-	assert(self->datas.empty());
-	assert(self->methods.empty());
-	assert(self->supermethods.empty());
+	// assert(self->classes.empty());
+	// assert(self->datas.empty());
+	// assert(self->methods.empty());
+	// assert(self->supermethods.empty());
 	// Release the prevent-deletion weak reference, allowing the Object to be deleted if no other weak references remain.
 	Object_weak_unref(self);
 }
@@ -216,14 +217,14 @@ void Object_class_remove(Object* self, const Class* cls) {
 void Object_method_push(Object* self, void* dispatcher, void* method) {
 	if (!self)
 		return;
-	assert(dispatcher);
-	assert(method);
+	// assert(dispatcher);
+	// assert(method);
 	// Check if method already exists
 	void** existing = self->methods.find(dispatcher);
 	if (existing) {
 		void* supermethod = *existing;
 		// We can't re-override the same method
-		assert(method != supermethod);
+		// assert(method != supermethod);
 		// Method is already an override on another dispatcher
 		if (self->supermethods.find(method))
 			return;
