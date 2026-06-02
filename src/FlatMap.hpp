@@ -42,7 +42,7 @@ struct FlatMap {
 
 	SizeT hash(const K& key) const {
 		// key * (2^64 / golden ratio), modulo capacity
-		return (uint64_t(key) * 0x9E3779B97F4A7C15ULL) & mask;
+		return ((uint64_t(key) * 0x9E3779B97F4A7C15ULL) >> 32) & mask;
 	}
 
 	void rehash(SizeT newCapacity) {
