@@ -2,6 +2,7 @@
 
 #include <stdint.h> // for int32_t, uint64_t, etc.
 #include <stdbool.h> // for bool, true, false
+#include <stddef.h> // for NULL
 
 
 #ifdef __cplusplus
@@ -105,7 +106,7 @@ Example:
 Declares the following functions.
 
 Constructor:
-	Object* Animal_create(Object* self, const char* name, int32_t legs);
+	Object* Animal_create(const char* name, int32_t legs);
 
 Specialization function:
 	void Animal_specialize(Object* self, const char* name, int32_t legs);
@@ -118,7 +119,17 @@ Specialization function:
 
 /** Declares a non-virtual method for a class.
 This method cannot be overridden by specialized classes (subclasses).
-Similar to METHOD_VIRTUAL but doesn't define method getters/setters.
+
+CLASS is the class name such as `Animal`.
+METHOD is the method name such as `speak`.
+RETTYPE is the return value such as `void`.
+ARGTYPES are the arguments such as `(const char* name, int32_t loudness)`.
+
+Example:
+	METHOD(Animal, speak, void, (const char* name))
+
+Declares the function:
+	void Animal_speak(Object* self, const char* name);
 */
 #define METHOD(CLASS, METHOD, RETTYPE, ARGTYPES) \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES)
@@ -308,7 +319,7 @@ Example:
 Declares the functions:
 	uint64_t Animal_child_count_get(const Object* self);
 	Object* Animal_child_get(const Object* self, uint64_t index);
-	void Animal_child_set(Object* self, uint64_t index, Object* element);
+	void Animal_child_set(Object* self, uint64_t index, Object* child);
 */
 #define ARRAY_ACCESSOR(CLASS, PROP, TYPE) \
 	ARRAY_GETTER(CLASS, PROP, TYPE); \
@@ -323,9 +334,9 @@ Example:
 
 Declares the functions:
 	uint64_t Animal_child_count_get(const Object* self);
-	void Animal_child_count_set(Object* self, uint64_t index);
+	void Animal_child_count_set(Object* self, uint64_t child_count);
 	Object* Animal_child_get(const Object* self, uint64_t index);
-	void Animal_child_set(Object* self, uint64_t index, Object* element);
+	void Animal_child_set(Object* self, uint64_t index, Object* child);
 
 */
 #define VECTOR_ACCESSOR(CLASS, PROP, TYPE) \
@@ -442,8 +453,6 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, { \
-		if (!data) \
-			return DEFAULT; \
 		return data->PROP; \
 	})
 
@@ -464,8 +473,6 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 */
 #define DEFINE_GETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_GETTER_VIRTUAL(CLASS, PROP, TYPE, DEFAULT, { \
-		if (!data) \
-			return DEFAULT; \
 		return data->PROP; \
 	})
 
@@ -476,8 +483,6 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE) \
 	DEFINE_SETTER(CLASS, PROP, TYPE, { \
-		if (!data) \
-			return; \
 		data->PROP = PROP; \
 	})
 
@@ -498,8 +503,6 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 */
 #define DEFINE_SETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE) \
 	DEFINE_SETTER_VIRTUAL(CLASS, PROP, TYPE, { \
-		if (!data) \
-			return; \
 		data->PROP = PROP; \
 	})
 
@@ -629,7 +632,7 @@ Call macros
 
 
 #define IS(SELF, CLASS) \
-	(Object_data_get(SELF, &CLASS##_class) != 0)
+	(Object_data_get(SELF, &CLASS##_class) != NULL)
 
 
 #define METHOD_PUSH(SELF, SUPERCLASS, CLASS, METHOD) \
@@ -704,7 +707,9 @@ typedef struct Class {
 	May be NULL if the class has no data to free.
 	*/
 	Object_free_m* free;
-	// Reserved for future fields. Must be zero.
+	/** Reserved for future fields.
+	Must be zero.
+	*/
 	void* reserved[30];
 } Class;
 
@@ -714,7 +719,7 @@ Reference count is set to 1.
 Object must be unreferenced with Object_unref() to prevent a memory leak.
 Never returns NULL.
 */
-Object* Object_create();
+Object* Object_create(void);
 
 
 /** Increments the object's reference counter.
@@ -738,6 +743,8 @@ void Object_unref(const Object* self);
 
 
 /** Returns the number of strong references to the object.
+Returns 0 if self is NULL.
+Thread-safe.
 */
 uint32_t Object_refs_get(const Object* self);
 
@@ -760,12 +767,15 @@ void Object_weak_unref(const Object* self);
 
 
 /** Returns the number of weak references to the object.
+Returns 0 if self is NULL.
+Thread-safe.
 */
 uint32_t Object_weak_refs_get(const Object* self);
 
 
 /** Attempts to obtain a strong reference from a weak reference.
 If successful, the caller must unreference the strong reference with Object_unref().
+Returns false if self is NULL.
 Thread-safe.
 */
 __attribute__((hot))
@@ -778,13 +788,14 @@ bool Object_weak_lock(const Object* self);
 
 /** Assigns an object a class type with a data pointer.
 data must not be NULL. Pass OBJECT_NO_DATA for classes without per-instance data.
-Does nothing if self is NULL.
+Does nothing if self, cls, or data is NULL, or if the class is already present.
 Not thread-safe with accessing classes or calling methods.
 */
 void Object_class_push(Object* self, const Class* cls, void* data);
 
 
 /** Returns the data pointer for self's class cls, or NULL if self is not of class cls.
+Returns NULL if self is NULL.
 Not thread-safe with accessing classes or calling methods.
 */
 __attribute__((pure, hot))
@@ -807,6 +818,8 @@ void Object_method_push(Object* self, void* dispatcher, void* method);
 
 /** Returns the direct method for the given dispatch method.
 Returns NULL if no method has been pushed for the dispatcher.
+Returns NULL if self is NULL.
+Not thread-safe with accessing methods or calling methods.
 */
 __attribute__((pure, hot))
 void* Object_method_get(const Object* self, void* dispatcher);
@@ -814,6 +827,8 @@ void* Object_method_get(const Object* self, void* dispatcher);
 
 /** Returns the method that was overridden by the given method.
 Returns NULL if the method is the first in the chain, or does not exist.
+Returns NULL if self is NULL.
+Not thread-safe with accessing methods or calling methods.
 */
 __attribute__((pure, hot))
 void* Object_supermethod_get(const Object* self, void* method);
@@ -827,6 +842,7 @@ void Object_method_remove(Object* self, void* dispatcher, void* method);
 
 
 /** Generates a string listing all type names and data pointers of an object in order of specialization.
+Returns NULL if self is NULL.
 Caller must free() the returned string.
 Not thread-safe with accessing classes.
 */
