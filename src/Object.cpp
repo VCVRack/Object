@@ -51,10 +51,19 @@ struct alignas(64) Object {
 };
 
 
+static std::atomic<uint64_t> alive{0};
+
+
 Object* Object_create() {
 	Object* self = new Object;
 	// assert(self);
+	alive.fetch_add(1, std::memory_order_relaxed);
 	return self;
+}
+
+
+uint64_t Object_alive_get() {
+	return alive.load(std::memory_order_relaxed);
 }
 
 
@@ -121,8 +130,10 @@ void Object_weak_unref(const Object* self) {
 	uint32_t refs_strong = refs & 0xFFFFFFFF;
 	uint32_t refs_weak = refs >> 32;
 	// Free Object shell if this was the last weak ref and strong refs are already gone
-	if (refs_weak == 1 && refs_strong == 0)
+	if (refs_weak == 1 && refs_strong == 0) {
+		alive.fetch_sub(1, std::memory_order_relaxed);
 		delete self;
+	}
 }
 
 

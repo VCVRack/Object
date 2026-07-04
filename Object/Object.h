@@ -722,6 +722,12 @@ Never returns NULL.
 Object* Object_create(void);
 
 
+/** Returns the number of objects currently alive.
+Useful for leak detection and debugging.
+*/
+uint64_t Object_alive_get(void);
+
+
 /** Increments the object's reference counter.
 Use this to share another reference to this object.
 Each reference must be unreferenced with Object_unref() to prevent a memory leak.
