@@ -296,14 +296,14 @@ Example:
 
 
 /** Declares a non-virtual indexed getter method for a class.
-PROP should be a singular noun.
+PROP should be a plural noun, since it names an array.
 
 Example:
-	ARRAY_GETTER(Animal, child, Object*)
+	ARRAY_GETTER(Animal, children, Object*)
 
 Declares the functions:
-	uint64_t Animal_child_count_get(const Object* self);
-	Object* Animal_child_get(const Object* self, uint64_t index);
+	uint64_t Animal_children_count_get(const Object* self);
+	Object* Animal_children_get(const Object* self, uint64_t index);
 */
 #define ARRAY_GETTER(CLASS, PROP, TYPE) \
 	GETTER(CLASS, PROP##_count, uint64_t); \
@@ -311,32 +311,32 @@ Declares the functions:
 
 
 /** Declares a non-virtual indexed getter/setter method pair for a class.
-PROP should be a singular noun.
+PROP should be a plural noun, since it names an array.
 
 Example:
-	ARRAY_ACCESSOR(Animal, child, Object*)
+	ARRAY_ACCESSOR(Animal, children, Object*)
 
 Declares the functions:
-	uint64_t Animal_child_count_get(const Object* self);
-	Object* Animal_child_get(const Object* self, uint64_t index);
-	void Animal_child_set(Object* self, uint64_t index, Object* child);
+	uint64_t Animal_children_count_get(const Object* self);
+	Object* Animal_children_get(const Object* self, uint64_t index);
+	void Animal_children_set(Object* self, uint64_t index, Object* element);
 */
 #define ARRAY_ACCESSOR(CLASS, PROP, TYPE) \
 	ARRAY_GETTER(CLASS, PROP, TYPE); \
-	METHOD(CLASS, PROP##_set, void, (uint64_t index, TYPE PROP))
+	METHOD(CLASS, PROP##_set, void, (uint64_t index, TYPE element))
 
 
 /** Declares a non-virtual indexed resizable getter/setter method pair for a class.
-PROP should be a singular noun.
+PROP should be a plural noun, since it names an array.
 
 Example:
-	VECTOR_ACCESSOR(Animal, child, Object*)
+	VECTOR_ACCESSOR(Animal, children, Object*)
 
 Declares the functions:
-	uint64_t Animal_child_count_get(const Object* self);
-	void Animal_child_count_set(Object* self, uint64_t child_count);
-	Object* Animal_child_get(const Object* self, uint64_t index);
-	void Animal_child_set(Object* self, uint64_t index, Object* child);
+	uint64_t Animal_children_count_get(const Object* self);
+	void Animal_children_count_set(Object* self, uint64_t children_count);
+	Object* Animal_children_get(const Object* self, uint64_t index);
+	void Animal_children_set(Object* self, uint64_t index, Object* element);
 
 */
 #define VECTOR_ACCESSOR(CLASS, PROP, TYPE) \
@@ -544,7 +544,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_ARRAY_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER, ...) \
 	DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, GETTER) \
-	DEFINE_METHOD(CLASS, PROP##_set, void, (uint64_t index, TYPE PROP), VOID, __VA_ARGS__)
+	DEFINE_METHOD(CLASS, PROP##_set, void, (uint64_t index, TYPE element), VOID, __VA_ARGS__)
 
 
 #define DEFINE_VECTOR_ACCESSOR(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, COUNTSETTER, GETTER, ...) \
