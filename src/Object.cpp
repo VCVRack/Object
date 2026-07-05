@@ -1,5 +1,5 @@
 /*
-Reference implementation of Object runtime code using FlatMap.
+Reference implementation of Object runtime code.
 
 Feel free to rewrite this in other languages that can export C symbols.
 */
@@ -10,10 +10,9 @@ Feel free to rewrite this in other languages that can export C symbols.
 #include <cstdio>
 #include <new>
 #include <vector>
-#include <algorithm>
 #include <atomic>
 #include <Object/Object.h>
-#include "FlatMap.hpp"
+#include "Schema.hpp"
 
 
 #define LENGTHOF(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -23,35 +22,20 @@ Feel free to rewrite this in other languages that can export C symbols.
 static_assert(sizeof(Class) == 256, "Object Class size must be 256 bytes");
 
 
+static std::atomic<uint64_t> alive{0};
+static const SchemaNode* rootNode = new SchemaNode;
+
+
 struct alignas(64) Object {
-	// Cache line 0
-
-	// dispatch function pointer -> method function pointer
-	FlatMap<void*, void*> methods;
-	// Class -> data pointer
-	FlatMap<const Class*, void*> datas;
-	// method function pointer -> overridden method function pointer
-	FlatMap<void*, void*> supermethods;
-	// Packed reference counts. low 32 bits = strong refs, high 32 bits = weak refs
+	const SchemaNode* schemaNode = rootNode;
+	/** Packed reference counts.
+	Low 32 bits = strong refs, high 32 bits = weak refs.
+	*/
 	std::atomic<uint64_t> refs{1};
-	uint64_t pad0 = 0;
-
-	// Cache line 1+
-
-	struct Override {
-		void* dispatcher;
-		void* method;
-	};
-	struct ClassSlot {
-		const Class* cls;
-		std::vector<Override> overrides;
-	};
-	// Classes ordered by specialization
-	std::vector<ClassSlot> classes;
+	std::vector<void*> datas;
 };
 
 
-static std::atomic<uint64_t> alive{0};
 
 
 Object* Object_create() {
@@ -59,11 +43,6 @@ Object* Object_create() {
 	// assert(self);
 	alive.fetch_add(1, std::memory_order_relaxed);
 	return self;
-}
-
-
-uint64_t Object_alive_get() {
-	return alive.load(std::memory_order_relaxed);
 }
 
 
@@ -93,13 +72,14 @@ void Object_unref(const Object* self) {
 	// Prevent the Object from being deleted during finalize or free callbacks by adding a weak reference.
 	Object_weak_ref(self);
 	// Remove all classes from top to bottom
-	if (!self->classes.empty()) {
-		Object_class_remove(const_cast<Object*>(self), self->classes.front().cls);
+	const Class* clsBottom = NULL;
+	for (const SchemaNode* n = self->schemaNode; n; n = n->parent) {
+		if (n->delta.type == SchemaDelta::CLASS_PUSH)
+			clsBottom = n->delta.cls;
 	}
-	// assert(self->classes.empty());
+	if (clsBottom)
+		Object_class_remove(const_cast<Object*>(self), clsBottom);
 	// assert(self->datas.empty());
-	// assert(self->methods.empty());
-	// assert(self->supermethods.empty());
 	// Release the prevent-deletion weak reference, allowing the Object to be deleted if no other weak references remain.
 	Object_weak_unref(self);
 }
@@ -161,10 +141,11 @@ void Object_class_push(Object* self, const Class* cls, void* data) {
 	if (!self || !cls || !data)
 		return;
 	// Fail silently if class already existed
-	if (self->datas.find(cls))
+	const Schema* schema = SchemaNode_schema_get(self->schemaNode);
+	if (schema->dataIndices.find(cls))
 		return;
-	self->datas.insert(cls, data);
-	self->classes.push_back({cls, {}});
+	self->schemaNode = SchemaNode_child_findOrCreate(self->schemaNode, SchemaDelta_classPush(cls));
+	self->datas.push_back(data);
 }
 
 
@@ -172,10 +153,11 @@ void* Object_data_get(const Object* self, const Class* cls) {
 	// It is safe to not check cls, for performance
 	if (!self)
 		return NULL;
-	void** slot = self->datas.find(cls);
-	if (!slot)
+	const Schema* schema = SchemaNode_schema_get(self->schemaNode);
+	uint32_t* index = schema->dataIndices.find(cls);
+	if (!index)
 		return NULL;
-	return *slot;
+	return self->datas[*index];
 }
 
 
@@ -183,78 +165,63 @@ void Object_class_remove(Object* self, const Class* cls) {
 	if (!self)
 		return;
 
-	// Find target class, searching from the top since removal usually targets recent classes
-	auto rit = std::find_if(self->classes.rbegin(), self->classes.rend(), [&](const Object::ClassSlot& slot) {
-		return slot.cls == cls;
-	});
-	if (rit == self->classes.rend())
+	// Fail silently if the object does not have the class
+	bool found = false;
+	for (const SchemaNode* n = self->schemaNode; n; n = n->parent) {
+		if (n->delta.type == SchemaDelta::CLASS_PUSH && n->delta.cls == cls) {
+			found = true;
+			break;
+		}
+	}
+	if (!found)
 		return;
-	size_t target = self->classes.rend() - rit - 1;
 
-	// Remove classes from top down to target (inclusive)
-	while (self->classes.size() > target) {
-		auto& slot = self->classes.back();
-		const Class* c = slot.cls;
-
+	// Remove classes from top down to cls (inclusive)
+	for (const SchemaNode* n = self->schemaNode; n; n = n->parent) {
+		if (n->delta.type != SchemaDelta::CLASS_PUSH)
+			continue;
+		const Class* c = n->delta.cls;
 		if (c->free)
 			c->free(self);
-
-		// Revert method overrides in reverse order
-		for (size_t j = slot.overrides.size(); j > 0; j--) {
-			void* dispatcher = slot.overrides[j - 1].dispatcher;
-			void* method = slot.overrides[j - 1].method;
-
-			void** restorep = self->supermethods.find(method);
-			void* restore = restorep ? *restorep : NULL;
-			if (restorep)
-				self->supermethods.erase(method);
-
-			if (restore) {
-				void** methodp = self->methods.find(dispatcher);
-				if (methodp)
-					*methodp = restore;
-			}
-			else {
-				self->methods.erase(dispatcher);
-			}
-		}
-
-		self->datas.erase(c);
-		self->classes.pop_back();
+		// Remove data pointer
+		const Schema* schema = SchemaNode_schema_get(self->schemaNode);
+		uint32_t* index = schema->dataIndices.find(c);
+		if (index)
+			self->datas.resize(*index);
+		// Set parent class
+		self->schemaNode = n->parent;
+		// Stop at class cls
+		if (c == cls)
+			return;
 	}
 }
 
 
 void Object_method_push(Object* self, void* dispatcher, void* method) {
-	if (!self)
+	if (!self || !dispatcher || !method)
 		return;
-	// assert(dispatcher);
-	// assert(method);
-	// Check if method already exists
-	void** existing = self->methods.find(dispatcher);
-	if (existing) {
-		void* supermethod = *existing;
-		// We can't re-override the same method
-		// assert(method != supermethod);
-		// Method is already an override on another dispatcher
-		if (self->supermethods.find(method))
+	// Find and return existing SchemaNode with the exact Schema
+	SchemaDelta delta = SchemaDelta_methodPush(dispatcher, method);
+	SchemaNode* child = SchemaNode_child_find(self->schemaNode, delta);
+	if (child) {
+		self->schemaNode = child;
+		return;
+	}
+	// Check if the dispatcher already has a method
+	if (SchemaNode_method_find(self->schemaNode, dispatcher)) {
+		// Don't allow overriding with a method that was already pushed
+		if (SchemaNode_dispatcher_find(self->schemaNode, method))
 			return;
-		self->supermethods.insert(method, supermethod);
-		*existing = method;
 	}
-	else {
-		self->methods.insert(dispatcher, method);
-	}
-	// Record override in the current class
-	if (!self->classes.empty())
-		self->classes.back().overrides.push_back({dispatcher, method});
+	self->schemaNode = SchemaNode_child_findOrCreate(self->schemaNode, delta);
 }
 
 
 void* Object_method_get(const Object* self, void* dispatcher) {
 	if (!self)
 		return NULL;
-	void** method = self->methods.find(dispatcher);
+	const Schema* schema = SchemaNode_schema_get(self->schemaNode);
+	void** method = schema->methods.find(dispatcher);
 	if (!method)
 		return NULL;
 	return *method;
@@ -264,64 +231,11 @@ void* Object_method_get(const Object* self, void* dispatcher) {
 void* Object_supermethod_get(const Object* self, void* method) {
 	if (!self)
 		return NULL;
-	void** supermethod = self->supermethods.find(method);
+	const Schema* schema = SchemaNode_schema_get(self->schemaNode);
+	void** supermethod = schema->supermethods.find(method);
 	if (!supermethod)
 		return NULL;
 	return *supermethod;
-}
-
-
-void Object_method_remove(Object* self, void* dispatcher, void* method) {
-	if (!self)
-		return;
-	void** headp = self->methods.find(dispatcher);
-	if (!headp)
-		return;
-	void* head = *headp;
-
-	// Verify method is in the dispatcher's chain
-	void* current = head;
-	while (current && current != method) {
-		void** currentp = self->supermethods.find(current);
-		current = currentp ? *currentp : NULL;
-	}
-	if (current != method)
-		return;
-
-	// Save the restore point before modifying anything
-	void** restorep = self->supermethods.find(method);
-	void* restore = restorep ? *restorep : NULL;
-
-	// Remove methods from head down to method (inclusive)
-	current = head;
-	while (true) {
-		void** nextp = self->supermethods.find(current);
-		void* next = nextp ? *nextp : NULL;
-
-		// Remove from supermethods cache
-		self->supermethods.erase(current);
-
-		// Remove from owning class's override list
-		for (auto& slot : self->classes) {
-			auto it = std::find_if(slot.overrides.begin(), slot.overrides.end(), [&](const Object::Override& entry) {
-				return entry.dispatcher == dispatcher && entry.method == current;
-			});
-			if (it != slot.overrides.end()) {
-				slot.overrides.erase(it);
-				break;
-			}
-		}
-
-		if (current == method)
-			break;
-		current = next;
-	}
-
-	// Restore dispatcher to the method below the removed range
-	if (restore)
-		*headp = restore;
-	else
-		self->methods.erase(dispatcher);
 }
 
 
@@ -345,8 +259,15 @@ char* Object_inspect(const Object* self) {
 	}
 	pos += size;
 
-	for (auto& slot : self->classes) {
-		const Class* cls = slot.cls;
+	// Collect classes in push order
+	std::vector<const Class*> classes;
+	for (const SchemaNode* n = self->schemaNode; n; n = n->parent) {
+		if (n->delta.type == SchemaDelta::CLASS_PUSH)
+			classes.push_back(n->delta.cls);
+	}
+
+	for (size_t i = classes.size(); i > 0; i--) {
+		const Class* cls = classes[i - 1];
 		void* data = Object_data_get(self, cls);
 		size = snprintf(s + pos, capacity - pos, " %s(%p)", cls->name, data);
 		if (size < 0)
@@ -359,4 +280,14 @@ char* Object_inspect(const Object* self) {
 	}
 	s = (char*) realloc(s, pos + 1);
 	return s;
+}
+
+
+uint64_t Object_alive_get() {
+	return alive.load(std::memory_order_relaxed);
+}
+
+
+uint64_t Object_schemaNodes_count_get() {
+	return SchemaNode_count_get(rootNode);
 }

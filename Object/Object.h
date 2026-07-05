@@ -722,12 +722,6 @@ Never returns NULL.
 Object* Object_create(void);
 
 
-/** Returns the number of objects currently alive.
-Useful for leak detection and debugging.
-*/
-uint64_t Object_alive_get(void);
-
-
 /** Increments the object's reference counter.
 Use this to share another reference to this object.
 Each reference must be unreferenced with Object_unref() to prevent a memory leak.
@@ -840,19 +834,24 @@ __attribute__((pure, hot))
 void* Object_supermethod_get(const Object* self, void* method);
 
 
-/** Removes a method and all methods above it on the given dispatcher.
-Does nothing if self is NULL or the method is not in the dispatcher's chain.
-Not thread-safe with accessing methods or calling methods.
-*/
-void Object_method_remove(Object* self, void* dispatcher, void* method);
-
-
 /** Generates a string listing all type names and data pointers of an object in order of specialization.
 Returns NULL if self is NULL.
 Caller must free() the returned string.
 Not thread-safe with accessing classes.
 */
 char* Object_inspect(const Object* self);
+
+
+/** Returns the number of objects currently alive.
+Useful for leak detection and debugging.
+*/
+uint64_t Object_alive_get(void);
+
+
+/** Returns the number of schema nodes, the internal records shared by objects with the same class and method push history.
+Useful for profiling and debugging.
+*/
+uint64_t Object_schemaNodes_count_get(void);
 
 
 EXTERNC_END
