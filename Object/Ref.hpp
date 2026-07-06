@@ -338,9 +338,9 @@ Returns a new Object* reference for the caller.
 */
 #define DEFINE_REF_GETTER_AUTOMATIC(CLASS, PROP, TYPE) \
 	DEFINE_GETTER(CLASS, PROP, TYPE, NULL, { \
-		if (!data) \
+		if (!slot) \
 			return NULL; \
-		return data->PROP.share(); \
+		return slot->PROP.share(); \
 	})
 
 /** Similar to DEFINE_SETTER_AUTOMATIC() from Object.h for Object* properties stored as Ref or WeakRef.
@@ -348,9 +348,9 @@ Obtains a reference from the given borrowed Object*.
 */
 #define DEFINE_REF_SETTER_AUTOMATIC(CLASS, PROP, TYPE) \
 	DEFINE_SETTER(CLASS, PROP, TYPE, { \
-		if (!data) \
+		if (!slot) \
 			return; \
-		data->PROP.obtain(PROP); \
+		slot->PROP.obtain(PROP); \
 	})
 
 #define DEFINE_REF_ACCESSOR_AUTOMATIC(CLASS, PROP, TYPE) \

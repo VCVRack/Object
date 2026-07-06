@@ -61,8 +61,8 @@ struct Schema {
 	FlatMap<void*, void*> methods;
 	// method -> the method it overrode
 	FlatMap<void*, void*> supermethods;
-	// class -> index into Object::datas
-	FlatMap<const Class*, uint32_t> dataIndices;
+	// class -> index into Object's slots
+	FlatMap<const Class*, uint32_t> slotIndices;
 };
 
 
@@ -99,7 +99,7 @@ static const Schema* SchemaNode_schema_build(const SchemaNode* node) {
 	for (size_t i = ancestors.size(); i > 0; i--) {
 		const SchemaDelta& delta = ancestors[i - 1]->delta;
 		if (delta.type == SchemaDelta::CLASS_PUSH) {
-			newSchema->dataIndices.insert(delta.cls, classCount);
+			newSchema->slotIndices.insert(delta.cls, classCount);
 			classCount++;
 		}
 		else if (delta.type == SchemaDelta::METHOD_PUSH) {

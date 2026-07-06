@@ -36,8 +36,8 @@ struct alignas(64) Object {
 	Low 32 bits = strong refs, high 32 bits = weak refs.
 	*/
 	std::atomic<uint64_t> refs{1};
-	void* datasInline[4] = {};
-	void** datasSpill = NULL;
+	void* slotsInline[4] = {};
+	void** slotsSpill = NULL;
 };
 
 
@@ -91,7 +91,7 @@ void Object_unref(const Object* self) {
 			clsBottom = n->delta.cls;
 	}
 	if (clsBottom)
-		Object_class_remove(const_cast<Object*>(self), clsBottom);
+		Object_classes_remove(const_cast<Object*>(self), clsBottom);
 	// Release the prevent-deletion weak reference, allowing the Object to be deleted if no other weak references remain.
 	Object_weak_unref(self);
 }
@@ -124,7 +124,7 @@ void Object_weak_unref(const Object* self) {
 	// Free Object shell if this was the last weak ref and strong refs are already gone
 	if (refs_weak == 1 && refs_strong == 0) {
 		alive.fetch_sub(1, std::memory_order_relaxed);
-		free(self->datasSpill);
+		free(self->slotsSpill);
 		delete self;
 	}
 }
@@ -150,44 +150,44 @@ bool Object_weak_lock(const Object* self) {
 }
 
 
-void Object_class_push(Object* self, const Class* cls, void* data) {
-	if (!self || !cls || !data)
+void Object_classes_push(Object* self, const Class* cls, void* slot) {
+	if (!self || !cls || !slot)
 		return;
 	// Fail silently if class already existed
 	const Schema* schema = Object_schema_get(self);
-	if (schema->dataIndices.find(cls))
+	if (schema->slotIndices.find(cls))
 		return;
-	uint32_t dataIndex = schema->dataIndices.size;
+	uint32_t slotIndex = schema->slotIndices.size;
 	self->schemaNode = SchemaNode_child_findOrCreate(self->schemaNode, SchemaDelta_classPush(cls));
 	self->schema.store(self->schemaNode->schema.load(std::memory_order_acquire), std::memory_order_relaxed);
-	// Store data pointer inline, or grow the spill array to its exact derived size
-	if (dataIndex < LENGTHOF(self->datasInline)) {
-		self->datasInline[dataIndex] = data;
+	// Store slot inline, or grow the spill array to its exact derived size
+	if (slotIndex < LENGTHOF(self->slotsInline)) {
+		self->slotsInline[slotIndex] = slot;
 	}
 	else {
-		uint32_t spillIndex = dataIndex - LENGTHOF(self->datasInline);
-		self->datasSpill = (void**) realloc(self->datasSpill, (spillIndex + 1) * sizeof(void*));
-		self->datasSpill[spillIndex] = data;
+		uint32_t spillIndex = slotIndex - LENGTHOF(self->slotsInline);
+		self->slotsSpill = (void**) realloc(self->slotsSpill, (spillIndex + 1) * sizeof(void*));
+		self->slotsSpill[spillIndex] = slot;
 	}
 }
 
 
-void* Object_data_get(const Object* self, const Class* cls) {
+void* Object_slots_get(const Object* self, const Class* cls) {
 	// It is safe to not check cls, for performance
 	if (!self)
 		return NULL;
 	const Schema* schema = Object_schema_get(self);
-	uint32_t* dataIndex = schema->dataIndices.find(cls);
-	if (!dataIndex)
+	uint32_t* slotIndex = schema->slotIndices.find(cls);
+	if (!slotIndex)
 		return NULL;
-	if (*dataIndex < LENGTHOF(self->datasInline))
-		return self->datasInline[*dataIndex];
-	uint32_t spillIndex = *dataIndex - LENGTHOF(self->datasInline);
-	return self->datasSpill[spillIndex];
+	if (*slotIndex < LENGTHOF(self->slotsInline))
+		return self->slotsInline[*slotIndex];
+	uint32_t spillIndex = *slotIndex - LENGTHOF(self->slotsInline);
+	return self->slotsSpill[spillIndex];
 }
 
 
-void Object_class_remove(Object* self, const Class* cls) {
+void Object_classes_remove(Object* self, const Class* cls) {
 	if (!self)
 		return;
 
@@ -219,7 +219,7 @@ void Object_class_remove(Object* self, const Class* cls) {
 }
 
 
-void Object_method_push(Object* self, void* dispatcher, void* method) {
+void Object_methods_push(Object* self, void* dispatcher, void* method) {
 	if (!self || !dispatcher || !method)
 		return;
 	// Find and return existing SchemaNode with the exact delta
@@ -241,7 +241,7 @@ void Object_method_push(Object* self, void* dispatcher, void* method) {
 }
 
 
-void* Object_method_get(const Object* self, void* dispatcher) {
+void* Object_methods_get(const Object* self, void* dispatcher) {
 	if (!self)
 		return NULL;
 	const Schema* schema = Object_schema_get(self);
@@ -252,7 +252,7 @@ void* Object_method_get(const Object* self, void* dispatcher) {
 }
 
 
-void* Object_supermethod_get(const Object* self, void* method) {
+void* Object_supermethods_get(const Object* self, void* method) {
 	if (!self)
 		return NULL;
 	const Schema* schema = Object_schema_get(self);
@@ -292,8 +292,8 @@ char* Object_inspect(const Object* self) {
 
 	for (size_t i = classes.size(); i > 0; i--) {
 		const Class* cls = classes[i - 1];
-		void* data = Object_data_get(self, cls);
-		size = snprintf(s + pos, capacity - pos, " %s(%p)", cls->name, data);
+		void* slot = Object_slots_get(self, cls);
+		size = snprintf(s + pos, capacity - pos, " %s(%p)", cls->name, slot);
 		if (size < 0)
 			break;
 		pos += size;

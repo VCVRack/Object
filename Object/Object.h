@@ -353,7 +353,7 @@ Definition macros for source implementation files
 	EXTERNC void CLASS##_specialize(Object* self COMMA_EXPAND INITARGS) { \
 		if (!self) \
 			return; \
-		if (Object_data_get(self, &CLASS##_class)) \
+		if (Object_slots_get(self, &CLASS##_class)) \
 			return; \
 		__VA_ARGS__ \
 	} \
@@ -368,8 +368,8 @@ Definition macros for source implementation files
 	static void CLASS##_free(Object* self) { \
 		if (!self) \
 			return; \
-		CLASS* data = (CLASS*) Object_data_get(self, &CLASS##_class); \
-		if (!data) \
+		CLASS* slot = (CLASS*) Object_slots_get(self, &CLASS##_class); \
+		if (!slot) \
 			return; \
 		__VA_ARGS__ \
 	}
@@ -393,8 +393,8 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 */
 #define DEFINE_METHOD(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, ...) \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS* data = (CLASS*) Object_data_get(self, &CLASS##_class); \
-		if (!data) \
+		CLASS* slot = (CLASS*) Object_slots_get(self, &CLASS##_class); \
+		if (!slot) \
 			return RETDEFAULT; \
 		__VA_ARGS__ \
 	}
@@ -403,7 +403,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 #define DEFINE_METHOD_INTERFACE(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, ARGNAMES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS##_##METHOD##_m* m = (CLASS##_##METHOD##_m*) Object_method_get(self, (void*) &CLASS##_##METHOD); \
+		CLASS##_##METHOD##_m* m = (CLASS##_##METHOD##_m*) Object_methods_get(self, (void*) &CLASS##_##METHOD); \
 		if (!m) \
 			return RETDEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
@@ -421,8 +421,8 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_METHOD_CONST(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, ...) \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
-		const CLASS* data = (const CLASS*) Object_data_get(self, &CLASS##_class); \
-		if (!data) \
+		const CLASS* slot = (const CLASS*) Object_slots_get(self, &CLASS##_class); \
+		if (!slot) \
 			return RETDEFAULT; \
 		__VA_ARGS__ \
 	}
@@ -431,7 +431,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 #define DEFINE_METHOD_CONST_INTERFACE(CLASS, METHOD, RETTYPE, ARGTYPES, RETDEFAULT, ARGNAMES) \
 	typedef RETTYPE CLASS##_##METHOD##_m(const Object* self COMMA_EXPAND ARGTYPES); \
 	EXTERNC RETTYPE CLASS##_##METHOD(const Object* self COMMA_EXPAND ARGTYPES) { \
-		CLASS##_##METHOD##_m* m = (CLASS##_##METHOD##_m*) Object_method_get(self, (void*) &CLASS##_##METHOD); \
+		CLASS##_##METHOD##_m* m = (CLASS##_##METHOD##_m*) Object_methods_get(self, (void*) &CLASS##_##METHOD); \
 		if (!m) \
 			return RETDEFAULT; \
 		return m(self COMMA_EXPAND ARGNAMES); \
@@ -453,7 +453,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, { \
-		return data->PROP; \
+		return slot->PROP; \
 	})
 
 
@@ -469,11 +469,11 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_METHOD_CONST_VIRTUAL(CLASS, PROP##_get, TYPE, (), DEFAULT, (), __VA_ARGS__)
 
 
-/** Defines a getter method that returns the property from the data struct.
+/** Defines a getter method that returns the property from the slot struct.
 */
 #define DEFINE_GETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_GETTER_VIRTUAL(CLASS, PROP, TYPE, DEFAULT, { \
-		return data->PROP; \
+		return slot->PROP; \
 	})
 
 
@@ -483,7 +483,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 #define DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE) \
 	DEFINE_SETTER(CLASS, PROP, TYPE, { \
-		data->PROP = PROP; \
+		slot->PROP = PROP; \
 	})
 
 
@@ -499,11 +499,11 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_METHOD_VIRTUAL(CLASS, PROP##_set, void, (TYPE PROP), VOID, (PROP), __VA_ARGS__)
 
 
-/** Defines a setter method that sets the property to the data struct.
+/** Defines a setter method that sets the property to the slot struct.
 */
 #define DEFINE_SETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE) \
 	DEFINE_SETTER_VIRTUAL(CLASS, PROP, TYPE, { \
-		data->PROP = PROP; \
+		slot->PROP = PROP; \
 	})
 
 
@@ -623,20 +623,20 @@ Call macros
 	CLASS##_specialize(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define CLASS_PUSH(SELF, CLASS, DATA) \
-	Object_class_push(SELF, &CLASS##_class, DATA)
+#define CLASS_PUSH(SELF, CLASS, SLOT) \
+	Object_classes_push(SELF, &CLASS##_class, SLOT)
 
 
-#define DATA_GET(SELF, CLASS) \
-	((CLASS*) Object_data_get(SELF, &CLASS##_class))
+#define SLOT_GET(SELF, CLASS) \
+	((CLASS*) Object_slots_get(SELF, &CLASS##_class))
 
 
 #define IS(SELF, CLASS) \
-	(Object_data_get(SELF, &CLASS##_class) != NULL)
+	(Object_slots_get(SELF, &CLASS##_class) != NULL)
 
 
 #define METHOD_PUSH(SELF, SUPERCLASS, CLASS, METHOD) \
-	Object_method_push(SELF, (void*) &SUPERCLASS##_##METHOD, (void*) &CLASS##_##METHOD##_mdirect)
+	Object_methods_push(SELF, (void*) &SUPERCLASS##_##METHOD, (void*) &CLASS##_##METHOD##_mdirect)
 
 
 #define GETTER_PUSH(SELF, SUPERCLASS, CLASS, PROP) \
@@ -661,7 +661,7 @@ Call macros
 
 
 #define SUPER_CALL(SELF, SUPERCLASS, CLASS, METHOD, ...) \
-	((SUPERCLASS##_##METHOD##_m*) Object_supermethod_get(SELF, (void*) &CLASS##_##METHOD##_mdirect))(SELF __VA_OPT__(,) __VA_ARGS__)
+	((SUPERCLASS##_##METHOD##_m*) Object_supermethods_get(SELF, (void*) &CLASS##_##METHOD##_mdirect))(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
 #define GET(SELF, CLASS, PROP, ...) \
@@ -703,8 +703,8 @@ typedef void Object_free_m(Object* self);
 
 typedef struct Class {
 	const char* name;
-	/** Frees data pointer and its contents.
-	May be NULL if the class has no data to free.
+	/** Frees the class's slot and its contents.
+	May be NULL if the class has no slot to free.
 	*/
 	Object_free_m* free;
 	/** Reserved for future fields.
@@ -734,7 +734,7 @@ void Object_ref(const Object* self);
 
 
 /** Decrements the object's reference counter.
-If no references are left, this frees the object and its internal data for each class.
+If no references are left, this frees the object and its slot for each class.
 Object should be considered invalid after calling this function.
 Thread-safe.
 Does nothing if self is NULL.
@@ -783,38 +783,38 @@ __attribute__((hot, warn_unused_result))
 bool Object_weak_lock(const Object* self);
 
 
-/** Sentinel data pointer for classes without per-instance data. Must not be dereferenced. */
-#define OBJECT_NO_DATA ((void*) 1)
+/** Sentinel slot for classes without per-instance state. Must not be dereferenced. */
+#define OBJECT_NO_SLOT ((void*) 1)
 
 
-/** Assigns an object a class type with a data pointer.
-data must not be NULL. Pass OBJECT_NO_DATA for classes without per-instance data.
-Does nothing if self, cls, or data is NULL, or if the class is already present.
+/** Assigns an object a class type with a slot pointer.
+slot must not be NULL. Pass OBJECT_NO_SLOT for classes without per-instance state.
+Does nothing if self, cls, or slot is NULL, or if the class is already present.
 Not thread-safe with accessing classes or calling methods.
 */
-void Object_class_push(Object* self, const Class* cls, void* data);
+void Object_classes_push(Object* self, const Class* cls, void* slot);
 
 
-/** Returns the data pointer for self's class cls, or NULL if self is not of class cls.
+/** Returns the slot for self's class cls, or NULL if self is not of class cls.
 Returns NULL if self is NULL.
 Not thread-safe with accessing classes or calling methods.
 */
 __attribute__((pure, hot))
-void* Object_data_get(const Object* self, const Class* cls);
+void* Object_slots_get(const Object* self, const Class* cls);
 
 
 /** Removes a class and all classes above it from an object.
-For each class in reverse order, this reverts its method overrides, calls free(), and removes its data.
+For each class in reverse order, this reverts its method overrides, calls free(), and removes its slot.
 Does nothing if self is NULL or the class is not found.
 Not thread-safe with accessing classes or calling methods.
 */
-void Object_class_remove(Object* self, const Class* cls);
+void Object_classes_remove(Object* self, const Class* cls);
 
 
 /** Overrides a method dispatched by the `dispatcher` function pointer.
 Not thread-safe with accessing methods or calling methods.
 */
-void Object_method_push(Object* self, void* dispatcher, void* method);
+void Object_methods_push(Object* self, void* dispatcher, void* method);
 
 
 /** Returns the direct method for the given dispatch method.
@@ -823,7 +823,7 @@ Returns NULL if self is NULL.
 Not thread-safe with accessing methods or calling methods.
 */
 __attribute__((pure, hot))
-void* Object_method_get(const Object* self, void* dispatcher);
+void* Object_methods_get(const Object* self, void* dispatcher);
 
 
 /** Returns the method that was overridden by the given method.
@@ -832,10 +832,10 @@ Returns NULL if self is NULL.
 Not thread-safe with accessing methods or calling methods.
 */
 __attribute__((pure, hot))
-void* Object_supermethod_get(const Object* self, void* method);
+void* Object_supermethods_get(const Object* self, void* method);
 
 
-/** Generates a string listing all type names and data pointers of an object in order of specialization.
+/** Generates a string listing all type names and slots of an object in order of specialization.
 Returns NULL if self is NULL.
 Caller must free() the returned string.
 Not thread-safe with accessing classes.

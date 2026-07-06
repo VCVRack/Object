@@ -28,13 +28,13 @@ CALL(dog, Animal, speak); // Woof!
 DIRECT_CALL(dog, Animal, speak); // Hello
 ```
 
-Each class's data is encapsulated in a private/opaque struct unless exposed by getters/setters, which can be virtual or non-virtual.
+Each class's state is encapsulated in a private/opaque slot struct unless exposed by getters/setters, which can be virtual or non-virtual.
 ```c
-// legs property is stored in Animal class data
+// legs property is stored in Animal's slot
 Animal_legs_get(dog); // 4, since Dog calls Animal_legs_set(dog, 4) upon specialization
 Animal_legs_set(dog, 5); // Dog can override Animal_legs_set() to validate the value and perform custom behavior
 
-// name property is stored in Dog class data
+// name property is stored in Dog's slot
 Dog_name_set(dog, "Fido");
 
 // Or use macros if you prefer
@@ -92,7 +92,7 @@ See [examples/Animal.c](examples/Animal.c) for a possible implementation using `
 ## ABI-stability
 
 Without breaking your library's ABI (application binary interface), you can:
-- Add, remove, and modify class data.
+- Add, remove, and modify fields of a class's slot struct.
 - Add virtual and non-virtual methods, getters, and setters.
 - Convert non-virtual methods to virtual methods.
 - Change class hierarchy, such as inserting a `Mammal` class between `Dog` and `Animal`, or making `Animal` specialize `Organism`, or making `Dog` not based on `Animal`.
@@ -116,7 +116,7 @@ typedef int (*Foo_bar_m)(Object* self, int n);
 
 Any language/environment with a C FFI interface can call these functions to interact with your library, including C++, Go, Rust, Zig, Java, C#, Python, PHP, Node, Ruby, Julia, Lua, etc.
 
-The Object struct and each class's data structs are private/opaque and must not be accessed except by these functions.
+The Object struct and each class's slot struct are private/opaque and must not be accessed except by these functions.
 
 
 ## In this repo

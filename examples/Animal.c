@@ -24,13 +24,13 @@ struct Animal {
 
 
 DEFINE_CLASS(Animal, (), (), {
-	Animal* data = (Animal*) calloc(1, sizeof(Animal));
-	CLASS_PUSH(self, Animal, data);
+	Animal* slot = (Animal*) calloc(1, sizeof(Animal));
+	CLASS_PUSH(self, Animal, slot);
 	METHOD_PUSH(self, Animal, Animal, speak);
 	ACCESSOR_PUSH(self, Animal, Animal, legs);
 }, {
 	printf("bye Animal\n");
-	free(data);
+	free(slot);
 })
 
 
@@ -57,8 +57,8 @@ struct Dog {
 DEFINE_CLASS(Dog, (const char* name), (name), {
 	SPECIALIZE(self, Animal);
 
-	Dog* data = (Dog*) calloc(1, sizeof(Dog));
-	CLASS_PUSH(self, Dog, data);
+	Dog* slot = (Dog*) calloc(1, sizeof(Dog));
+	CLASS_PUSH(self, Dog, slot);
 
 	METHOD_PUSH(self, Animal, Dog, speak);
 	ACCESSOR_PUSH(self, Animal, Dog, legs);
@@ -68,8 +68,8 @@ DEFINE_CLASS(Dog, (const char* name), (name), {
 	SET(self, Dog, name, name);
 }, {
 	printf("bye Dog\n");
-	free(data->name);
-	free(data);
+	free(slot->name);
+	free(slot);
 })
 
 
@@ -89,8 +89,8 @@ DEFINE_ACCESSOR_OVERRIDE(Dog, legs, int, -1, {
 
 
 DEFINE_ACCESSOR_VIRTUAL(Dog, name, const char*, "", {
-	return data->name;
+	return slot->name;
 }, {
-	free(data->name);
-	data->name = strdup2(name);
+	free(slot->name);
+	slot->name = strdup2(name);
 })

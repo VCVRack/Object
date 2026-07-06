@@ -281,13 +281,13 @@ Example:
 	});
 */
 #define BIND_METHOD(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
-	Object_method_push(self_get(), (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](Object* self COMMA_EXPAND ARGTYPES) { \
+	Object_methods_push(self_get(), (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](Object* self COMMA_EXPAND ARGTYPES) { \
 		CPPCLASS* that = static_cast<CPPCLASS*>(ObjectProxies_bound_get(self, NULL)); \
 		CODE \
 	}))
 
 #define BIND_METHOD_CONST(CPPCLASS, CLASS, METHOD, ARGTYPES, CODE) \
-	Object_method_push(self_get(), (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](const Object* self COMMA_EXPAND ARGTYPES) { \
+	Object_methods_push(self_get(), (void*) &CLASS##_##METHOD, (void*) static_cast<CLASS##_##METHOD##_m*>([](const Object* self COMMA_EXPAND ARGTYPES) { \
 		const CPPCLASS* that = static_cast<CPPCLASS*>(ObjectProxies_bound_get(self, NULL)); \
 		CODE \
 	}))

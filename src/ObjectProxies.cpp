@@ -20,71 +20,71 @@ struct ObjectProxies {
 
 
 DEFINE_CLASS(ObjectProxies, (), (), {
-	ObjectProxies* data = new ObjectProxies;
-	CLASS_PUSH(self, ObjectProxies, data);
+	ObjectProxies* slot = new ObjectProxies;
+	CLASS_PUSH(self, ObjectProxies, slot);
 }, {
 	// Destroy proxies in reverse order to allow re-entrant remove() calls
-	while (!data->proxies.empty()) {
-		ProxyData p = data->proxies.back();
+	while (!slot->proxies.empty()) {
+		ProxyData p = slot->proxies.back();
 		// Remove proxy before calling destructor
-		data->proxies.pop_back();
+		slot->proxies.pop_back();
 		if (p.destructor) {
 			p.destructor(p.proxy);
 		}
 	}
 	// Destroy bound proxy if exists
-	ProxyData& bp = data->boundProxy;
+	ProxyData& bp = slot->boundProxy;
 	if (bp.proxy && bp.destructor) {
 		bp.destructor(bp.proxy);
 	}
-	delete data;
+	delete slot;
 })
 
 
 DEFINE_METHOD(ObjectProxies, add, void, (void* proxy, const void* type, ObjectProxies_destructor_f* destructor), VOID, {
 	if (!proxy)
 		return;
-	data->proxies.push_back({proxy, type, destructor});
+	slot->proxies.push_back({proxy, type, destructor});
 	if (type) {
-		data->proxiesByType[type] = proxy;
+		slot->proxiesByType[type] = proxy;
 	}
 })
 
 
 DEFINE_METHOD(ObjectProxies, remove, void, (void* proxy), VOID, {
 	// Remove from proxies
-	for (auto it = data->proxies.begin(); it != data->proxies.end();) {
+	for (auto it = slot->proxies.begin(); it != slot->proxies.end();) {
 		if (it->proxy == proxy)
-			it = data->proxies.erase(it);
+			it = slot->proxies.erase(it);
 		else
 			++it;
 	}
 	// Remove from proxiesByType
-	for (auto it = data->proxiesByType.begin(); it != data->proxiesByType.end();)
+	for (auto it = slot->proxiesByType.begin(); it != slot->proxiesByType.end();)
 		if (it->second == proxy)
-			it = data->proxiesByType.erase(it);
+			it = slot->proxiesByType.erase(it);
 		else
 			++it;
 })
 
 
 DEFINE_METHOD_CONST(ObjectProxies, get, void*, (const void* type), NULL, {
-	auto it = data->proxiesByType.find(type);
-	if (it == data->proxiesByType.end())
+	auto it = slot->proxiesByType.find(type);
+	if (it == slot->proxiesByType.end())
 		return NULL;
 	return it->second;
 })
 
 
 DEFINE_METHOD_CONST(ObjectProxies, bound_get, void*, (const void** type), NULL, {
-	const ProxyData& bp = data->boundProxy;
+	const ProxyData& bp = slot->boundProxy;
 	if (type)
 		*type = bp.type;
 	return bp.proxy;
 })
 
 DEFINE_METHOD(ObjectProxies, bound_set, void, (void* proxy, const void* type, ObjectProxies_destructor_f* destructor), VOID, {
-	ProxyData& bp = data->boundProxy;
+	ProxyData& bp = slot->boundProxy;
 	bp.proxy = proxy;
 	bp.type = type;
 	bp.destructor = destructor;
