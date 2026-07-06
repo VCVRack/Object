@@ -719,6 +719,7 @@ Reference count is set to 1.
 Object must be unreferenced with Object_unref() to prevent a memory leak.
 Never returns NULL.
 */
+__attribute__((warn_unused_result))
 Object* Object_create(void);
 
 
@@ -778,7 +779,7 @@ If successful, the caller must unreference the strong reference with Object_unre
 Returns false if self is NULL.
 Thread-safe.
 */
-__attribute__((hot))
+__attribute__((hot, warn_unused_result))
 bool Object_weak_lock(const Object* self);
 
 
