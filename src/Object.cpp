@@ -6,9 +6,7 @@ Feel free to rewrite this in other languages that can export C symbols.
 
 #include <cstdlib>
 #include <cstdint>
-#include <cassert>
 #include <cstdio>
-#include <new>
 #include <vector>
 #include <atomic>
 #include <Object/Object.h>
@@ -23,19 +21,34 @@ static_assert(sizeof(Class) == 256, "Object Class size must be 256 bytes");
 
 
 static std::atomic<uint64_t> alive{0};
-static const SchemaNode* rootNode = new SchemaNode;
+
+
+static SchemaNode* rootNode_get() {
+	static SchemaNode* const rootNode = new SchemaNode;
+	return rootNode;
+}
 
 
 struct alignas(64) Object {
-	const SchemaNode* schemaNode = rootNode;
+	const SchemaNode* schemaNode = rootNode_get();
+	std::atomic<const Schema*> schema{NULL};
 	/** Packed reference counts.
 	Low 32 bits = strong refs, high 32 bits = weak refs.
 	*/
 	std::atomic<uint64_t> refs{1};
-	std::vector<void*> datas;
+	void* datasInline[4] = {};
+	void** datasSpill = NULL;
 };
 
 
+static const Schema* Object_schema_get(const Object* self) {
+	const Schema* schema = self->schema.load(std::memory_order_acquire);
+	if (schema)
+		return schema;
+	schema = SchemaNode_schema_get(self->schemaNode);
+	const_cast<Object*>(self)->schema.store(schema, std::memory_order_release);
+	return schema;
+}
 
 
 Object* Object_create() {
@@ -79,7 +92,6 @@ void Object_unref(const Object* self) {
 	}
 	if (clsBottom)
 		Object_class_remove(const_cast<Object*>(self), clsBottom);
-	// assert(self->datas.empty());
 	// Release the prevent-deletion weak reference, allowing the Object to be deleted if no other weak references remain.
 	Object_weak_unref(self);
 }
@@ -112,6 +124,7 @@ void Object_weak_unref(const Object* self) {
 	// Free Object shell if this was the last weak ref and strong refs are already gone
 	if (refs_weak == 1 && refs_strong == 0) {
 		alive.fetch_sub(1, std::memory_order_relaxed);
+		free(self->datasSpill);
 		delete self;
 	}
 }
@@ -141,11 +154,21 @@ void Object_class_push(Object* self, const Class* cls, void* data) {
 	if (!self || !cls || !data)
 		return;
 	// Fail silently if class already existed
-	const Schema* schema = SchemaNode_schema_get(self->schemaNode);
+	const Schema* schema = Object_schema_get(self);
 	if (schema->dataIndices.find(cls))
 		return;
+	uint32_t dataIndex = schema->dataIndices.size;
 	self->schemaNode = SchemaNode_child_findOrCreate(self->schemaNode, SchemaDelta_classPush(cls));
-	self->datas.push_back(data);
+	self->schema.store(self->schemaNode->schema.load(std::memory_order_acquire), std::memory_order_relaxed);
+	// Store data pointer inline, or grow the spill array to its exact derived size
+	if (dataIndex < LENGTHOF(self->datasInline)) {
+		self->datasInline[dataIndex] = data;
+	}
+	else {
+		uint32_t spillIndex = dataIndex - LENGTHOF(self->datasInline);
+		self->datasSpill = (void**) realloc(self->datasSpill, (spillIndex + 1) * sizeof(void*));
+		self->datasSpill[spillIndex] = data;
+	}
 }
 
 
@@ -153,11 +176,14 @@ void* Object_data_get(const Object* self, const Class* cls) {
 	// It is safe to not check cls, for performance
 	if (!self)
 		return NULL;
-	const Schema* schema = SchemaNode_schema_get(self->schemaNode);
-	uint32_t* index = schema->dataIndices.find(cls);
-	if (!index)
+	const Schema* schema = Object_schema_get(self);
+	uint32_t* dataIndex = schema->dataIndices.find(cls);
+	if (!dataIndex)
 		return NULL;
-	return self->datas[*index];
+	if (*dataIndex < LENGTHOF(self->datasInline))
+		return self->datasInline[*dataIndex];
+	uint32_t spillIndex = *dataIndex - LENGTHOF(self->datasInline);
+	return self->datasSpill[spillIndex];
 }
 
 
@@ -183,13 +209,9 @@ void Object_class_remove(Object* self, const Class* cls) {
 		const Class* c = n->delta.cls;
 		if (c->free)
 			c->free(self);
-		// Remove data pointer
-		const Schema* schema = SchemaNode_schema_get(self->schemaNode);
-		uint32_t* index = schema->dataIndices.find(c);
-		if (index)
-			self->datas.resize(*index);
 		// Set parent class
 		self->schemaNode = n->parent;
+		self->schema.store(self->schemaNode->schema.load(std::memory_order_acquire), std::memory_order_relaxed);
 		// Stop at class cls
 		if (c == cls)
 			return;
@@ -200,11 +222,12 @@ void Object_class_remove(Object* self, const Class* cls) {
 void Object_method_push(Object* self, void* dispatcher, void* method) {
 	if (!self || !dispatcher || !method)
 		return;
-	// Find and return existing SchemaNode with the exact Schema
+	// Find and return existing SchemaNode with the exact delta
 	SchemaDelta delta = SchemaDelta_methodPush(dispatcher, method);
 	SchemaNode* child = SchemaNode_child_find(self->schemaNode, delta);
 	if (child) {
 		self->schemaNode = child;
+		self->schema.store(child->schema.load(std::memory_order_acquire), std::memory_order_relaxed);
 		return;
 	}
 	// Check if the dispatcher already has a method
@@ -214,13 +237,14 @@ void Object_method_push(Object* self, void* dispatcher, void* method) {
 			return;
 	}
 	self->schemaNode = SchemaNode_child_findOrCreate(self->schemaNode, delta);
+	self->schema.store(self->schemaNode->schema.load(std::memory_order_acquire), std::memory_order_relaxed);
 }
 
 
 void* Object_method_get(const Object* self, void* dispatcher) {
 	if (!self)
 		return NULL;
-	const Schema* schema = SchemaNode_schema_get(self->schemaNode);
+	const Schema* schema = Object_schema_get(self);
 	void** method = schema->methods.find(dispatcher);
 	if (!method)
 		return NULL;
@@ -231,7 +255,7 @@ void* Object_method_get(const Object* self, void* dispatcher) {
 void* Object_supermethod_get(const Object* self, void* method) {
 	if (!self)
 		return NULL;
-	const Schema* schema = SchemaNode_schema_get(self->schemaNode);
+	const Schema* schema = Object_schema_get(self);
 	void** supermethod = schema->supermethods.find(method);
 	if (!supermethod)
 		return NULL;
@@ -289,5 +313,5 @@ uint64_t Object_alive_get() {
 
 
 uint64_t Object_schemaNodes_count_get() {
-	return SchemaNode_count_get(rootNode);
+	return SchemaNode_count_get(rootNode_get());
 }
