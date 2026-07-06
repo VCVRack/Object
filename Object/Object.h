@@ -784,7 +784,7 @@ bool Object_weak_lock(const Object* self);
 
 
 /** Sentinel slot for classes without per-instance state. Must not be dereferenced. */
-#define OBJECT_NO_SLOT ((void*) 1)
+#define OBJECT_NO_SLOT ((void*) -1)
 
 
 /** Assigns an object a class type with a slot pointer.
