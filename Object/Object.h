@@ -790,14 +790,14 @@ bool Object_weak_lock(const Object* self);
 /** Assigns an object a class type with a slot pointer.
 slot must not be NULL. Pass OBJECT_NO_SLOT for classes without per-instance state.
 Does nothing if self, cls, or slot is NULL, or if the class is already present.
-Not thread-safe with accessing classes or calling methods.
+Not thread-safe with any Object function on the same object.
 */
 void Object_classes_push(Object* self, const Class* cls, void* slot);
 
 
 /** Returns the slot for self's class cls, or NULL if self is not of class cls.
 Returns NULL if self is NULL.
-Not thread-safe with accessing classes or calling methods.
+Thread-safe with method calls and other reads on the same object.
 */
 __attribute__((pure, hot))
 void* Object_slots_get(const Object* self, const Class* cls);
@@ -806,13 +806,13 @@ void* Object_slots_get(const Object* self, const Class* cls);
 /** Removes a class and all classes above it from an object.
 For each class in reverse order, this reverts its method overrides, calls free(), and removes its slot.
 Does nothing if self is NULL or the class is not found.
-Not thread-safe with accessing classes or calling methods.
+Not thread-safe with any Object function on the same object.
 */
 void Object_classes_remove(Object* self, const Class* cls);
 
 
 /** Overrides a method dispatched by the `dispatcher` function pointer.
-Not thread-safe with accessing methods or calling methods.
+Not thread-safe with any Object function on the same object.
 */
 void Object_methods_push(Object* self, void* dispatcher, void* method);
 
@@ -820,7 +820,7 @@ void Object_methods_push(Object* self, void* dispatcher, void* method);
 /** Returns the direct method for the given dispatch method.
 Returns NULL if no method has been pushed for the dispatcher.
 Returns NULL if self is NULL.
-Not thread-safe with accessing methods or calling methods.
+Thread-safe with method calls and other reads on the same object.
 */
 __attribute__((pure, hot))
 void* Object_methods_get(const Object* self, void* dispatcher);
@@ -829,7 +829,7 @@ void* Object_methods_get(const Object* self, void* dispatcher);
 /** Returns the method that was overridden by the given method.
 Returns NULL if the method is the first in the chain, or does not exist.
 Returns NULL if self is NULL.
-Not thread-safe with accessing methods or calling methods.
+Thread-safe with method calls and other reads on the same object.
 */
 __attribute__((pure, hot))
 void* Object_supermethods_get(const Object* self, void* method);
@@ -838,7 +838,7 @@ void* Object_supermethods_get(const Object* self, void* method);
 /** Generates a string listing all type names and slots of an object in order of specialization.
 Returns NULL if self is NULL.
 Caller must free() the returned string.
-Not thread-safe with accessing classes.
+Thread-safe with method calls and other reads on the same object.
 */
 char* Object_inspect(const Object* self);
 

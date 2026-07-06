@@ -122,7 +122,7 @@ The Object struct and each class's slot struct are private/opaque and must not b
 ## In this repo
 
 - [Object.h](Object/Object.h) contains macros to declare and define your classes and methods, as well as runtime function declarations.
-- [Object.cpp](src/Object.cpp) is a possible C++ implementation of the (tiny) runtime. Feel free to port this to C, Go, etc if you have a favorite map/dictionary implementation.
+- [Object.cpp](src/Object.cpp) is a possible C++ implementation of the runtime. Feel free to port it to other languages that can export C symbols.
 - [examples/](examples/) contains example programs that demonstrate usage and features.
 
 
