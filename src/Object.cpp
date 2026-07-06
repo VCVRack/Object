@@ -62,7 +62,7 @@ Object* Object_create() {
 void Object_ref(const Object* self) {
 	if (!self)
 		return;
-	// This check isn't part of the thread-safety guarantee, but it protects against obtaining a reference within a finalize() or free() function.
+	// This check isn't part of the thread-safety guarantee, but it protects against obtaining a reference within a free() function.
 	uint64_t refs = self->refs.load();
 	if ((refs & 0xFFFFFFFF) == 0)
 		return;
@@ -74,7 +74,7 @@ void Object_ref(const Object* self) {
 void Object_unref(const Object* self) {
 	if (!self)
 		return;
-	// This check isn't part of the thread-safety guarantee, but it protects against releasing a reference within a finalize() or free() function.
+	// This check isn't part of the thread-safety guarantee, but it protects against releasing a reference within a free() function.
 	uint64_t refs = self->refs.load();
 	if ((refs & 0xFFFFFFFF) == 0)
 		return;
@@ -82,7 +82,7 @@ void Object_unref(const Object* self) {
 	refs = const_cast<Object*>(self)->refs.fetch_sub(1);
 	if ((refs & 0xFFFFFFFF) != 1)
 		return;
-	// Prevent the Object from being deleted during finalize or free callbacks by adding a weak reference.
+	// Prevent the Object from being deleted during free callbacks by adding a weak reference.
 	Object_weak_ref(self);
 	// Remove all classes from top to bottom
 	const Class* clsBottom = NULL;
