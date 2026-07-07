@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <Object/Object.h>
-#include "FlatMap.hpp"
+#include "PerfectHashMap.hpp"
 
 
 struct SchemaDelta {
@@ -58,11 +58,11 @@ static inline bool SchemaDelta_equal_is(const SchemaDelta& a, const SchemaDelta&
 
 struct Schema {
 	// dispatcher method pointer -> direct method pointer
-	FlatMap<void*, void*> methods;
+	PerfectHashMap<void*, void*> methods;
 	// method -> the method it overrode
-	FlatMap<void*, void*> supermethods;
+	PerfectHashMap<void*, void*> supermethods;
 	// class -> index into Object's slots
-	FlatMap<const Class*, uint32_t> slotIndices;
+	PerfectHashMap<const Class*, uint32_t> slotIndices;
 };
 
 
@@ -94,26 +94,41 @@ static const Schema* SchemaNode_schema_build(const SchemaNode* node) {
 	for (const SchemaNode* n = node; n; n = n->parent)
 		ancestors.push_back(n);
 
-	Schema* newSchema = new Schema;
+	// Accumulate each map's entries
+	std::vector<PerfectHashMap<void*, void*>::Entry> methods;
+	std::vector<PerfectHashMap<void*, void*>::Entry> supermethods;
+	std::vector<PerfectHashMap<const Class*, uint32_t>::Entry> slotIndices;
 	uint32_t classCount = 0;
 	for (size_t i = ancestors.size(); i > 0; i--) {
 		const SchemaDelta& delta = ancestors[i - 1]->delta;
 		if (delta.type == SchemaDelta::CLASS_PUSH) {
-			newSchema->slotIndices.insert(delta.cls, classCount);
+			slotIndices.push_back({delta.cls, classCount});
 			classCount++;
 		}
 		else if (delta.type == SchemaDelta::METHOD_PUSH) {
-			void** existing = newSchema->methods.find(delta.dispatcher);
+			// Find the method entry that this delta overrides
+			PerfectHashMap<void*, void*>::Entry* overriddenEntry = NULL;
+			for (PerfectHashMap<void*, void*>::Entry& entry : methods) {
+				if (entry.key == delta.dispatcher) {
+					overriddenEntry = &entry;
+					break;
+				}
+			}
 			// Override existing method and set supermethod
-			if (existing) {
-				newSchema->supermethods.insert(delta.method, *existing);
-				*existing = delta.method;
+			if (overriddenEntry) {
+				supermethods.push_back({delta.method, overriddenEntry->value});
+				overriddenEntry->value = delta.method;
 			}
 			else {
-				newSchema->methods.insert(delta.dispatcher, delta.method);
+				methods.push_back({delta.dispatcher, delta.method});
 			}
 		}
 	}
+
+	Schema* newSchema = new Schema;
+	newSchema->methods.build(methods.data(), methods.size());
+	newSchema->supermethods.build(supermethods.data(), supermethods.size());
+	newSchema->slotIndices.build(slotIndices.data(), slotIndices.size());
 	schema = newSchema;
 
 	const Schema* existingSchema = NULL;

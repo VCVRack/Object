@@ -173,11 +173,10 @@ void Object_classes_push(Object* self, const Class* cls, void* slot) {
 
 
 void* Object_slots_get(const Object* self, const Class* cls) {
-	// It is safe to not check cls, for performance
-	if (!self)
+	if (!self || !cls)
 		return NULL;
 	const Schema* schema = Object_schema_get(self);
-	uint32_t* slotIndex = schema->slotIndices.find(cls);
+	const uint32_t* slotIndex = schema->slotIndices.find(cls);
 	if (!slotIndex)
 		return NULL;
 	if (*slotIndex < LENGTHOF(self->slotsInline))
@@ -242,10 +241,10 @@ void Object_methods_push(Object* self, void* dispatcher, void* method) {
 
 
 void* Object_methods_get(const Object* self, void* dispatcher) {
-	if (!self)
+	if (!self || !dispatcher)
 		return NULL;
 	const Schema* schema = Object_schema_get(self);
-	void** method = schema->methods.find(dispatcher);
+	void* const* method = schema->methods.find(dispatcher);
 	if (!method)
 		return NULL;
 	return *method;
@@ -253,10 +252,10 @@ void* Object_methods_get(const Object* self, void* dispatcher) {
 
 
 void* Object_supermethods_get(const Object* self, void* method) {
-	if (!self)
+	if (!self || !method)
 		return NULL;
 	const Schema* schema = Object_schema_get(self);
-	void** supermethod = schema->supermethods.find(method);
+	void* const* supermethod = schema->supermethods.find(method);
 	if (!supermethod)
 		return NULL;
 	return *supermethod;
