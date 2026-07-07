@@ -172,6 +172,8 @@ void Object_classes_push(Object* self, const Class* cls, void* slot) {
 }
 
 
+// Don't allow inlining into callers when link-time optimization (LTO) is enabled because it overflows the instruction cache.
+__attribute__((noinline))
 void* Object_slots_get(const Object* self, const Class* cls) {
 	if (!self || !cls)
 		return NULL;
@@ -240,6 +242,7 @@ void Object_methods_push(Object* self, void* dispatcher, void* method) {
 }
 
 
+__attribute__((noinline))
 void* Object_methods_get(const Object* self, void* dispatcher) {
 	if (!self || !dispatcher)
 		return NULL;
@@ -251,6 +254,7 @@ void* Object_methods_get(const Object* self, void* dispatcher) {
 }
 
 
+__attribute__((noinline))
 void* Object_supermethods_get(const Object* self, void* method) {
 	if (!self || !method)
 		return NULL;
