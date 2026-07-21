@@ -11,14 +11,14 @@
 struct SchemaDelta {
 	enum Type : uint8_t {
 		NONE,
-		CLASS_PUSH,
-		METHOD_PUSH,
+		CLASS,
+		METHOD,
 	};
 	Type type;
 	union {
-		// CLASS_PUSH
+		// CLASS
 		const Class* cls;
-		// METHOD_PUSH
+		// METHOD
 		struct {
 			void* dispatcher;
 			void* method;
@@ -29,7 +29,7 @@ struct SchemaDelta {
 
 static inline SchemaDelta SchemaDelta_classPush(const Class* cls) {
 	SchemaDelta delta = {};
-	delta.type = SchemaDelta::CLASS_PUSH;
+	delta.type = SchemaDelta::CLASS;
 	delta.cls = cls;
 	return delta;
 }
@@ -37,7 +37,7 @@ static inline SchemaDelta SchemaDelta_classPush(const Class* cls) {
 
 static inline SchemaDelta SchemaDelta_methodPush(void* dispatcher, void* method) {
 	SchemaDelta delta = {};
-	delta.type = SchemaDelta::METHOD_PUSH;
+	delta.type = SchemaDelta::METHOD;
 	delta.dispatcher = dispatcher;
 	delta.method = method;
 	return delta;
@@ -47,9 +47,9 @@ static inline SchemaDelta SchemaDelta_methodPush(void* dispatcher, void* method)
 static inline bool SchemaDelta_equal_is(const SchemaDelta& a, const SchemaDelta& b) {
 	if (a.type != b.type)
 		return false;
-	if (a.type == SchemaDelta::CLASS_PUSH)
+	if (a.type == SchemaDelta::CLASS)
 		return a.cls == b.cls;
-	else if (a.type == SchemaDelta::METHOD_PUSH)
+	else if (a.type == SchemaDelta::METHOD)
 		return a.dispatcher == b.dispatcher && a.method == b.method;
 	else
 		return true;
@@ -101,11 +101,11 @@ static const Schema* SchemaNode_schema_build(const SchemaNode* node) {
 	uint32_t classCount = 0;
 	for (size_t i = ancestors.size(); i > 0; i--) {
 		const SchemaDelta& delta = ancestors[i - 1]->delta;
-		if (delta.type == SchemaDelta::CLASS_PUSH) {
+		if (delta.type == SchemaDelta::CLASS) {
 			slotIndices.push_back({delta.cls, classCount});
 			classCount++;
 		}
-		else if (delta.type == SchemaDelta::METHOD_PUSH) {
+		else if (delta.type == SchemaDelta::METHOD) {
 			// Find the method entry that this delta overrides
 			PerfectHashMap<void*, void*>::Entry* overriddenEntry = NULL;
 			for (PerfectHashMap<void*, void*>::Entry& entry : methods) {
@@ -206,7 +206,7 @@ static uint64_t SchemaNode_count_get(const SchemaNode* node) {
 static void* SchemaNode_method_find(const SchemaNode* node, void* dispatcher) {
 	// Walk up the ancestors to find the first method push delta for the dispatcher
 	for (const SchemaNode* n = node; n; n = n->parent) {
-		if (n->delta.type == SchemaDelta::METHOD_PUSH && n->delta.dispatcher == dispatcher)
+		if (n->delta.type == SchemaDelta::METHOD && n->delta.dispatcher == dispatcher)
 			return n->delta.method;
 	}
 	return NULL;
@@ -216,7 +216,7 @@ static void* SchemaNode_method_find(const SchemaNode* node, void* dispatcher) {
 static void* SchemaNode_dispatcher_find(const SchemaNode* node, void* method) {
 	// Walk up the ancestors to find the first method push delta for the method
 	for (const SchemaNode* n = node; n; n = n->parent) {
-		if (n->delta.type == SchemaDelta::METHOD_PUSH && n->delta.method == method)
+		if (n->delta.type == SchemaDelta::METHOD && n->delta.method == method)
 			return n->delta.dispatcher;
 	}
 	return NULL;

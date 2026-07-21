@@ -306,15 +306,15 @@ Example:
 /** Calls a virtual method, using direct call if bound or dispatch call if not.
 Use in ObjectProxy subclass virtual methods.
 */
-#define PROXY_CALL(CLASS, BASE_CLASS, METHOD, ...) \
+#define CALL_PROXY(CLASS, BASE_CLASS, METHOD, ...) \
 	(bound_get() ? CLASS##_##METHOD##_mdirect : BASE_CLASS##_##METHOD)(self_get(), ##__VA_ARGS__)
 
 /** Gets a virtual property, using direct call if bound or dispatch call if not. */
-#define PROXY_GET(CLASS, BASE_CLASS, PROP, ...) \
+#define GET_PROXY(CLASS, BASE_CLASS, PROP, ...) \
 	(bound_get() ? CLASS##_##PROP##_get_mdirect : BASE_CLASS##_##PROP##_get)(self_get(), ##__VA_ARGS__)
 
 /** Sets a virtual property, using direct call if bound or dispatch call if not. */
-#define PROXY_SET(CLASS, BASE_CLASS, PROP, ...) \
+#define SET_PROXY(CLASS, BASE_CLASS, PROP, ...) \
 	(bound_get() ? CLASS##_##PROP##_set_mdirect : BASE_CLASS##_##PROP##_set)(self_get(), ##__VA_ARGS__)
 
 
@@ -399,7 +399,7 @@ struct GetterProxy : Proxy<Base> {
 };
 
 
-#define GETTER_PROXY_METHODS(TYPE, GETTER) \
+#define PROXY_GETTER_METHODS(TYPE, GETTER) \
 	TYPE get() const { \
 		Object* self = self_get(); \
 		(void) self; \
@@ -407,10 +407,10 @@ struct GetterProxy : Proxy<Base> {
 	}
 
 
-#define GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER) \
+#define PROXY_GETTER_CUSTOM(CPPCLASS, PROP, TYPE, GETTER) \
 	struct Proxy_##PROP { \
 		PROXY_METHODS(CPPCLASS, PROP) \
-		GETTER_PROXY_METHODS(TYPE, GETTER) \
+		PROXY_GETTER_METHODS(TYPE, GETTER) \
 	}; \
 	[[no_unique_address]] \
 	const GetterProxy<Proxy_##PROP> PROP
@@ -419,18 +419,18 @@ struct GetterProxy : Proxy<Base> {
 /** Behaves like a const variable but wraps a getter function.
 Zero overhead: 0 bytes, compiles to C function calls.
 Example:
-	GETTER_PROXY(AnimalProxy, Animal, legs, int);
+	PROXY_GETTER(AnimalProxy, Animal, legs, int);
 
 Usage:
 	int legs = animalProxy->legs; // Calls Animal_legs_get(animal);
 */
-#define GETTER_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
-	GETTER_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
+#define PROXY_GETTER(CPPCLASS, CLASS, PROP, TYPE) \
+	PROXY_GETTER_CUSTOM(CPPCLASS, PROP, TYPE, { \
 		return GET(self, CLASS, PROP); \
 	})
 
 
-#define GLOBAL_GETTER_PROXY_CUSTOM(PROP, TYPE, GETTER) \
+#define PROXY_GLOBAL_GETTER_CUSTOM(PROP, TYPE, GETTER) \
 	struct Proxy_##PROP { \
 		TYPE get() const { GETTER } \
 	}; \
@@ -439,13 +439,13 @@ Usage:
 
 /** Behaves like a const global variable but wraps a free getter function.
 Example:
-	GLOBAL_GETTER_PROXY(zoo, temperature, float);
+	PROXY_GLOBAL_GETTER(zoo, temperature, float);
 
 Usage:
 	float t = temperature; // Calls zoo_temperature_get()
 */
-#define GLOBAL_GETTER_PROXY(PREFIX, PROP, TYPE) \
-	GLOBAL_GETTER_PROXY_CUSTOM(PROP, TYPE, { \
+#define PROXY_GLOBAL_GETTER(PREFIX, PROP, TYPE) \
+	PROXY_GLOBAL_GETTER_CUSTOM(PROP, TYPE, { \
 		return PREFIX##_##PROP##_get(); \
 	})
 
@@ -476,8 +476,8 @@ struct AccessorProxy : GetterProxy<Base> {
 };
 
 
-#define ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
-	GETTER_PROXY_METHODS(TYPE, GETTER) \
+#define PROXY_ACCESSOR_METHODS(PROP, TYPE, GETTER, SETTER) \
+	PROXY_GETTER_METHODS(TYPE, GETTER) \
 	void set(TYPE PROP) { \
 		Object* self = self_get(); \
 		(void) self; \
@@ -485,10 +485,10 @@ struct AccessorProxy : GetterProxy<Base> {
 	}
 
 
-#define ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, GETTER, SETTER) \
+#define PROXY_ACCESSOR_CUSTOM(CPPCLASS, PROP, TYPE, GETTER, SETTER) \
 	struct Proxy_##PROP { \
 		PROXY_METHODS(CPPCLASS, PROP) \
-		ACCESSOR_PROXY_METHODS(PROP, TYPE, GETTER, SETTER) \
+		PROXY_ACCESSOR_METHODS(PROP, TYPE, GETTER, SETTER) \
 	}; \
 	[[no_unique_address]] \
 	AccessorProxy<Proxy_##PROP> PROP
@@ -496,21 +496,21 @@ struct AccessorProxy : GetterProxy<Base> {
 
 /** Behaves like a mutable variable but wraps getter/setter functions.
 Example:
-	ACCESSOR_PROXY(AnimalProxy, Animal, legs, int);
+	PROXY_ACCESSOR(AnimalProxy, Animal, legs, int);
 
 Usage:
 	int legs = animalProxy->legs; // Calls Animal_legs_get(animal);
 	animalProxy->legs = 4; // Calls Animal_legs_set(animal, 3);
 */
-#define ACCESSOR_PROXY(CPPCLASS, CLASS, PROP, TYPE) \
-	ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, TYPE, { \
+#define PROXY_ACCESSOR(CPPCLASS, CLASS, PROP, TYPE) \
+	PROXY_ACCESSOR_CUSTOM(CPPCLASS, PROP, TYPE, { \
 		return GET(self, CLASS, PROP); \
 	}, { \
 		SET(self, CLASS, PROP, PROP); \
 	})
 
 
-#define GLOBAL_ACCESSOR_PROXY_CUSTOM(PROP, TYPE, GETTER, SETTER) \
+#define PROXY_GLOBAL_ACCESSOR_CUSTOM(PROP, TYPE, GETTER, SETTER) \
 	struct Proxy_##PROP { \
 		TYPE get() const { GETTER } \
 		void set(TYPE PROP) { SETTER } \
@@ -520,14 +520,14 @@ Usage:
 
 /** Behaves like a mutable global variable but wraps free getter/setter functions.
 Example:
-	GLOBAL_ACCESSOR_PROXY(zoo, temperature, float);
+	PROXY_GLOBAL_ACCESSOR(zoo, temperature, float);
 
 Usage:
 	float t = temperature; // Calls zoo_temperature_get()
 	temperature = 72.0f; // Calls zoo_temperature_set(72.0f)
 */
-#define GLOBAL_ACCESSOR_PROXY(PREFIX, PROP, TYPE) \
-	GLOBAL_ACCESSOR_PROXY_CUSTOM(PROP, TYPE, { \
+#define PROXY_GLOBAL_ACCESSOR(PREFIX, PROP, TYPE) \
+	PROXY_GLOBAL_ACCESSOR_CUSTOM(PROP, TYPE, { \
 		return PREFIX##_##PROP##_get(); \
 	}, { \
 		PREFIX##_##PROP##_set(PROP); \
@@ -599,7 +599,7 @@ struct ArrayGetterProxy : Proxy<Base> {
 };
 
 
-#define ARRAY_GETTER_PROXY_METHODS(TYPE, COUNT, GETTER) \
+#define PROXY_ARRAY_GETTER_METHODS(TYPE, COUNT, GETTER) \
 	size_t count_get() const { \
 		Object* self = self_get(); \
 		(void) self; \
@@ -612,10 +612,10 @@ struct ArrayGetterProxy : Proxy<Base> {
 	}
 
 
-#define ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, COUNT, GETTER) \
+#define PROXY_ARRAY_GETTER_CUSTOM(CPPCLASS, PROPS, TYPE, COUNT, GETTER) \
 	struct Proxy_##PROPS { \
 		PROXY_METHODS(CPPCLASS, PROPS) \
-		ARRAY_GETTER_PROXY_METHODS(TYPE, COUNT, GETTER) \
+		PROXY_ARRAY_GETTER_METHODS(TYPE, COUNT, GETTER) \
 	}; \
 	[[no_unique_address]] \
 	const ArrayGetterProxy<Proxy_##PROPS> PROPS
@@ -625,14 +625,14 @@ struct ArrayGetterProxy : Proxy<Base> {
 PROPS should be plural since C++ arrays are typically plural.
 
 Example:
-	ARRAY_GETTER_PROXY(AnimalProxy, children, Animal, child, Object*);
+	PROXY_ARRAY_GETTER(AnimalProxy, children, Animal, child, Object*);
 
 Usage:
 	size_t childrenSize = animalProxy->children.size(); // Calls Animal_child_count_get(animal);
 	Object* child = animalProxy->children[index]; // Calls Animal_child_get(animal, index);
 */
-#define ARRAY_GETTER_PROXY(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
-	ARRAY_GETTER_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, { \
+#define PROXY_ARRAY_GETTER(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
+	PROXY_ARRAY_GETTER_CUSTOM(CPPCLASS, PROPS, TYPE, { \
 		return GET(self, CLASS, PROP##_count); \
 	}, { \
 		return GET(self, CLASS, PROP, index); \
@@ -779,8 +779,8 @@ struct ArrayAccessorProxy : Proxy<Base> {
 };
 
 
-#define ARRAY_ACCESSOR_PROXY_METHODS(TYPE, COUNT, GETTER, SETTER) \
-	ARRAY_GETTER_PROXY_METHODS(TYPE, COUNT, GETTER) \
+#define PROXY_ARRAY_ACCESSOR_METHODS(TYPE, COUNT, GETTER, SETTER) \
+	PROXY_ARRAY_GETTER_METHODS(TYPE, COUNT, GETTER) \
 	void set(size_t index, TYPE element) { \
 		Object* self = self_get(); \
 		(void) self; \
@@ -788,10 +788,10 @@ struct ArrayAccessorProxy : Proxy<Base> {
 	}
 
 
-#define ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, COUNT, GETTER, SETTER) \
+#define PROXY_ARRAY_ACCESSOR_CUSTOM(CPPCLASS, PROPS, TYPE, COUNT, GETTER, SETTER) \
 	struct Proxy_##PROPS { \
 		PROXY_METHODS(CPPCLASS, PROPS) \
-		ARRAY_ACCESSOR_PROXY_METHODS(TYPE, COUNT, GETTER, SETTER) \
+		PROXY_ARRAY_ACCESSOR_METHODS(TYPE, COUNT, GETTER, SETTER) \
 	}; \
 	[[no_unique_address]] \
 	ArrayAccessorProxy<Proxy_##PROPS> PROPS
@@ -801,14 +801,14 @@ struct ArrayAccessorProxy : Proxy<Base> {
 PROPS should be plural since C++ arrays are typically plural.
 
 Example:
-	ARRAY_ACCESSOR_PROXY(AnimalProxy, children, Animal, child, Object*);
+	PROXY_ARRAY_ACCESSOR(AnimalProxy, children, Animal, child, Object*);
 
 Usage:
-	// Everything in ARRAY_GETTER_PROXY, plus
+	// Everything in PROXY_ARRAY_GETTER, plus
 	animalProxy->children[index] = child; // Calls Animal_child_set(animal, index, child);
 */
-#define ARRAY_ACCESSOR_PROXY(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
-	ARRAY_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, { \
+#define PROXY_ARRAY_ACCESSOR(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
+	PROXY_ARRAY_ACCESSOR_CUSTOM(CPPCLASS, PROPS, TYPE, { \
 		return GET(self, CLASS, PROP##_count); \
 	}, { \
 		return GET(self, CLASS, PROP, index); \
@@ -817,8 +817,8 @@ Usage:
 	})
 
 
-#define VECTOR_ACCESSOR_PROXY_METHODS(TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
-	ARRAY_ACCESSOR_PROXY_METHODS(TYPE, COUNTGETTER, GETTER, SETTER) \
+#define PROXY_VECTOR_ACCESSOR_METHODS(TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
+	PROXY_ARRAY_ACCESSOR_METHODS(TYPE, COUNTGETTER, GETTER, SETTER) \
 	void count_set(size_t count) { \
 		Object* self = self_get(); \
 		(void) self; \
@@ -826,17 +826,17 @@ Usage:
 	}
 
 
-#define VECTOR_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
+#define PROXY_VECTOR_ACCESSOR_CUSTOM(CPPCLASS, PROPS, TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
 	struct Proxy_##PROPS { \
 		PROXY_METHODS(CPPCLASS, PROPS) \
-		VECTOR_ACCESSOR_PROXY_METHODS(TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
+		PROXY_VECTOR_ACCESSOR_METHODS(TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
 	}; \
 	[[no_unique_address]] \
 	ArrayAccessorProxy<Proxy_##PROPS> PROPS
 
 
-#define VECTOR_ACCESSOR_PROXY(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
-	VECTOR_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROPS, TYPE, { \
+#define PROXY_VECTOR_ACCESSOR(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
+	PROXY_VECTOR_ACCESSOR_CUSTOM(CPPCLASS, PROPS, TYPE, { \
 		return GET(self, CLASS, PROP##_count); \
 	}, { \
 		SET(self, CLASS, PROP##_count, count); \
@@ -872,18 +872,18 @@ struct StringGetterProxy : GetterProxy<Base> {
 };
 
 
-#define STRING_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, GETTER) \
+#define PROXY_STRING_GETTER_CUSTOM(CPPCLASS, PROP, GETTER) \
 	struct Proxy_##PROP { \
 		PROXY_METHODS(CPPCLASS, PROP) \
-		GETTER_PROXY_METHODS(std::string, GETTER) \
+		PROXY_GETTER_METHODS(std::string, GETTER) \
 	}; \
 	[[no_unique_address]] \
 	const StringGetterProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a `const std::string` member but proxies a `char*` getter function where the caller must free(). */
-#define STRING_GETTER_PROXY(CPPCLASS, CLASS, PROP) \
-	STRING_GETTER_PROXY_CUSTOM(CPPCLASS, PROP, { \
+#define PROXY_STRING_GETTER(CPPCLASS, CLASS, PROP) \
+	PROXY_STRING_GETTER_CUSTOM(CPPCLASS, PROP, { \
 		char* c = GET(self, CLASS, PROP); \
 		if (!c) return std::string(); \
 		std::string s = c; \
@@ -892,7 +892,7 @@ struct StringGetterProxy : GetterProxy<Base> {
 	})
 
 
-#define GLOBAL_STRING_GETTER_PROXY_CUSTOM(PROP, GETTER) \
+#define PROXY_GLOBAL_STRING_GETTER_CUSTOM(PROP, GETTER) \
 	struct Proxy_##PROP { \
 		std::string get() const { GETTER } \
 	}; \
@@ -900,8 +900,8 @@ struct StringGetterProxy : GetterProxy<Base> {
 
 
 /** Behaves like a `const std::string` global but wraps a `char*` getter where the caller must free(). */
-#define GLOBAL_STRING_GETTER_PROXY(PREFIX, PROP) \
-	GLOBAL_STRING_GETTER_PROXY_CUSTOM(PROP, { \
+#define PROXY_GLOBAL_STRING_GETTER(PREFIX, PROP) \
+	PROXY_GLOBAL_STRING_GETTER_CUSTOM(PROP, { \
 		char* c = PREFIX##_##PROP##_get(); \
 		if (!c) return std::string(); \
 		std::string s = c; \
@@ -928,18 +928,18 @@ struct StringAccessorProxy : AccessorProxy<Base> {
 };
 
 
-#define STRING_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, GETTER, SETTER) \
+#define PROXY_STRING_ACCESSOR_CUSTOM(CPPCLASS, PROP, GETTER, SETTER) \
 	struct Proxy_##PROP { \
 		PROXY_METHODS(CPPCLASS, PROP) \
-		ACCESSOR_PROXY_METHODS(PROP, std::string, GETTER, SETTER) \
+		PROXY_ACCESSOR_METHODS(PROP, std::string, GETTER, SETTER) \
 	}; \
 	[[no_unique_address]] \
 	StringAccessorProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a `std::string` member but proxies a `char*` getter function where the caller must free(), and a `const char*` setter function where the setter copies the string. */
-#define STRING_ACCESSOR_PROXY(CPPCLASS, CLASS, PROP) \
-	STRING_ACCESSOR_PROXY_CUSTOM(CPPCLASS, PROP, { \
+#define PROXY_STRING_ACCESSOR(CPPCLASS, CLASS, PROP) \
+	PROXY_STRING_ACCESSOR_CUSTOM(CPPCLASS, PROP, { \
 		char* c = GET(self, CLASS, PROP); \
 		if (!c) return std::string(); \
 		std::string s = c; \
@@ -950,7 +950,7 @@ struct StringAccessorProxy : AccessorProxy<Base> {
 	})
 
 
-#define GLOBAL_STRING_ACCESSOR_PROXY_CUSTOM(PROP, GETTER, SETTER) \
+#define PROXY_GLOBAL_STRING_ACCESSOR_CUSTOM(PROP, GETTER, SETTER) \
 	struct Proxy_##PROP { \
 		std::string get() const { GETTER } \
 		void set(std::string PROP) { SETTER } \
@@ -959,8 +959,8 @@ struct StringAccessorProxy : AccessorProxy<Base> {
 
 
 /** Behaves like a `std::string` global but wraps a `char*` getter (caller frees) and `const char*` setter. */
-#define GLOBAL_STRING_ACCESSOR_PROXY(PREFIX, PROP) \
-	GLOBAL_STRING_ACCESSOR_PROXY_CUSTOM(PROP, { \
+#define PROXY_GLOBAL_STRING_ACCESSOR(PREFIX, PROP) \
+	PROXY_GLOBAL_STRING_ACCESSOR_CUSTOM(PROP, { \
 		char* c = PREFIX##_##PROP##_get(); \
 		if (!c) return std::string(); \
 		std::string s = c; \

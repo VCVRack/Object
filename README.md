@@ -25,7 +25,7 @@ Animal_speak_mdirect(dog); // Hello
 // Or use C/C++ macros if you prefer DSL-like code
 CALL(dog, Dog, bury, bone);
 CALL(dog, Animal, speak); // Woof!
-DIRECT_CALL(dog, Animal, speak); // Hello
+CALL_DIRECT(dog, Animal, speak); // Hello
 ```
 
 Each class's state is encapsulated in a private/opaque slot struct unless exposed by getters/setters, which can be virtual or non-virtual.

@@ -451,7 +451,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_METHOD_CONST(CLASS, PROP##_get, TYPE, (), DEFAULT, __VA_ARGS__)
 
 
-#define DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
+#define DEFINE_GETTER_SLOT(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_GETTER(CLASS, PROP, TYPE, DEFAULT, { \
 		return slot->PROP; \
 	})
@@ -471,7 +471,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 /** Defines a getter method that returns the property from the slot struct.
 */
-#define DEFINE_GETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
+#define DEFINE_GETTER_VIRTUAL_SLOT(CLASS, PROP, TYPE, DEFAULT) \
 	DEFINE_GETTER_VIRTUAL(CLASS, PROP, TYPE, DEFAULT, { \
 		return slot->PROP; \
 	})
@@ -481,7 +481,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_METHOD(CLASS, PROP##_set, void, (TYPE PROP), VOID, __VA_ARGS__)
 
 
-#define DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE) \
+#define DEFINE_SETTER_SLOT(CLASS, PROP, TYPE) \
 	DEFINE_SETTER(CLASS, PROP, TYPE, { \
 		slot->PROP = PROP; \
 	})
@@ -501,7 +501,7 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 
 /** Defines a setter method that sets the property to the slot struct.
 */
-#define DEFINE_SETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE) \
+#define DEFINE_SETTER_VIRTUAL_SLOT(CLASS, PROP, TYPE) \
 	DEFINE_SETTER_VIRTUAL(CLASS, PROP, TYPE, { \
 		slot->PROP = PROP; \
 	})
@@ -512,9 +512,9 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_SETTER(CLASS, PROP, TYPE, __VA_ARGS__)
 
 
-#define DEFINE_ACCESSOR_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
-	DEFINE_GETTER_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
-	DEFINE_SETTER_AUTOMATIC(CLASS, PROP, TYPE)
+#define DEFINE_ACCESSOR_SLOT(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_GETTER_SLOT(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_SETTER_SLOT(CLASS, PROP, TYPE)
 
 
 #define DEFINE_ACCESSOR_INTERFACE(CLASS, PROP, TYPE, DEFAULT) \
@@ -532,9 +532,9 @@ Downgrading a virtual method to a non-virtual method removes linker symbols and 
 	DEFINE_SETTER_VIRTUAL(CLASS, PROP, TYPE, __VA_ARGS__)
 
 
-#define DEFINE_ACCESSOR_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
-	DEFINE_GETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE, DEFAULT) \
-	DEFINE_SETTER_VIRTUAL_AUTOMATIC(CLASS, PROP, TYPE)
+#define DEFINE_ACCESSOR_VIRTUAL_SLOT(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_GETTER_VIRTUAL_SLOT(CLASS, PROP, TYPE, DEFAULT) \
+	DEFINE_SETTER_VIRTUAL_SLOT(CLASS, PROP, TYPE)
 
 
 #define DEFINE_ARRAY_GETTER(CLASS, PROP, TYPE, DEFAULT, COUNTGETTER, ...) \
@@ -572,7 +572,7 @@ Defines:
 	DEFINE_FUNCTION(PREFIX, NAME##_get, TYPE, (), __VA_ARGS__)
 
 
-#define DEFINE_GLOBAL_GETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+#define DEFINE_GLOBAL_GETTER_VARIABLE(PREFIX, NAME, TYPE) \
 	DEFINE_GLOBAL_GETTER(PREFIX, NAME, TYPE, { \
 		return NAME; \
 	})
@@ -582,7 +582,7 @@ Defines:
 	DEFINE_FUNCTION(PREFIX, NAME##_set, void, (TYPE NAME), __VA_ARGS__)
 
 
-#define DEFINE_GLOBAL_SETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+#define DEFINE_GLOBAL_SETTER_VARIABLE(PREFIX, NAME, TYPE) \
 	EXTERNC void PREFIX##_##NAME##_set(TYPE NAME##_) { \
 		NAME = NAME##_; \
 	}
@@ -593,9 +593,9 @@ Defines:
 	DEFINE_GLOBAL_SETTER(PREFIX, NAME, TYPE, __VA_ARGS__)
 
 
-#define DEFINE_GLOBAL_ACCESSOR_AUTOMATIC(PREFIX, NAME, TYPE) \
-	DEFINE_GLOBAL_GETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
-	DEFINE_GLOBAL_SETTER_AUTOMATIC(PREFIX, NAME, TYPE)
+#define DEFINE_GLOBAL_ACCESSOR_VARIABLE(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_GETTER_VARIABLE(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_SETTER_VARIABLE(PREFIX, NAME, TYPE)
 
 
 /**************************************
@@ -603,15 +603,15 @@ Call macros
 */
 
 
-#define GLOBAL_CALL(PREFIX, NAME, ...) \
+#define CALL_GLOBAL(PREFIX, NAME, ...) \
 	PREFIX##_##NAME(__VA_ARGS__)
 
 
-#define GLOBAL_GET(PREFIX, NAME, ...) \
+#define GET_GLOBAL(PREFIX, NAME, ...) \
 	PREFIX##_##NAME##_get(__VA_ARGS__)
 
 
-#define GLOBAL_SET(PREFIX, NAME, ...) \
+#define SET_GLOBAL(PREFIX, NAME, ...) \
 	PREFIX##_##NAME##_set(__VA_ARGS__)
 
 
@@ -623,11 +623,11 @@ Call macros
 	CLASS##_specialize(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define CLASS_PUSH(SELF, CLASS, SLOT) \
+#define PUSH_CLASS(SELF, CLASS, SLOT) \
 	Object_classes_push(SELF, &CLASS##_class, SLOT)
 
 
-#define SLOT_GET(SELF, CLASS) \
+#define SLOT(SELF, CLASS) \
 	((CLASS*) Object_slots_get(SELF, &CLASS##_class))
 
 
@@ -635,32 +635,32 @@ Call macros
 	(Object_slots_get(SELF, &CLASS##_class) != NULL)
 
 
-#define METHOD_PUSH(SELF, SUPERCLASS, CLASS, METHOD) \
+#define PUSH_METHOD(SELF, SUPERCLASS, CLASS, METHOD) \
 	Object_methods_push(SELF, (void*) &SUPERCLASS##_##METHOD, (void*) &CLASS##_##METHOD##_mdirect)
 
 
-#define GETTER_PUSH(SELF, SUPERCLASS, CLASS, PROP) \
-	METHOD_PUSH(SELF, SUPERCLASS, CLASS, PROP##_get)
+#define PUSH_GETTER(SELF, SUPERCLASS, CLASS, PROP) \
+	PUSH_METHOD(SELF, SUPERCLASS, CLASS, PROP##_get)
 
 
-#define SETTER_PUSH(SELF, SUPERCLASS, CLASS, PROP) \
-	METHOD_PUSH(SELF, SUPERCLASS, CLASS, PROP##_set)
+#define PUSH_SETTER(SELF, SUPERCLASS, CLASS, PROP) \
+	PUSH_METHOD(SELF, SUPERCLASS, CLASS, PROP##_set)
 
 
-#define ACCESSOR_PUSH(SELF, SUPERCLASS, CLASS, PROP) \
-	GETTER_PUSH(SELF, SUPERCLASS, CLASS, PROP); \
-	SETTER_PUSH(SELF, SUPERCLASS, CLASS, PROP)
+#define PUSH_ACCESSOR(SELF, SUPERCLASS, CLASS, PROP) \
+	PUSH_GETTER(SELF, SUPERCLASS, CLASS, PROP); \
+	PUSH_SETTER(SELF, SUPERCLASS, CLASS, PROP)
 
 
 #define CALL(SELF, CLASS, METHOD, ...) \
 	CLASS##_##METHOD(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define DIRECT_CALL(SELF, CLASS, METHOD, ...) \
+#define CALL_DIRECT(SELF, CLASS, METHOD, ...) \
 	CLASS##_##METHOD##_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define SUPER_CALL(SELF, SUPERCLASS, CLASS, METHOD, ...) \
+#define CALL_SUPER(SELF, SUPERCLASS, CLASS, METHOD, ...) \
 	((SUPERCLASS##_##METHOD##_m*) Object_supermethods_get(SELF, (void*) &CLASS##_##METHOD##_mdirect))(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
@@ -668,24 +668,24 @@ Call macros
 	CLASS##_##PROP##_get(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define DIRECT_GET(SELF, CLASS, PROP, ...) \
+#define GET_DIRECT(SELF, CLASS, PROP, ...) \
 	CLASS##_##PROP##_get_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define SUPER_GET(SELF, SUPERCLASS, CLASS, PROP, ...) \
-	SUPER_CALL(SELF, SUPERCLASS, CLASS, PROP##_get __VA_OPT__(,) __VA_ARGS__)
+#define GET_SUPER(SELF, SUPERCLASS, CLASS, PROP, ...) \
+	CALL_SUPER(SELF, SUPERCLASS, CLASS, PROP##_get __VA_OPT__(,) __VA_ARGS__)
 
 
 #define SET(SELF, CLASS, PROP, ...) \
 	CLASS##_##PROP##_set(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define DIRECT_SET(SELF, CLASS, PROP, ...) \
+#define SET_DIRECT(SELF, CLASS, PROP, ...) \
 	CLASS##_##PROP##_set_mdirect(SELF __VA_OPT__(,) __VA_ARGS__)
 
 
-#define SUPER_SET(SELF, SUPERCLASS, CLASS, PROP, ...) \
-	SUPER_CALL(SELF, SUPERCLASS, CLASS, PROP##_set __VA_OPT__(,) __VA_ARGS__)
+#define SET_SUPER(SELF, SUPERCLASS, CLASS, PROP, ...) \
+	CALL_SUPER(SELF, SUPERCLASS, CLASS, PROP##_set __VA_OPT__(,) __VA_ARGS__)
 
 
 /**************************************
@@ -784,11 +784,11 @@ bool Object_weak_lock(const Object* self);
 
 
 /** Sentinel slot for classes without per-instance state. Must not be dereferenced. */
-#define OBJECT_NO_SLOT ((void*) -1)
+#define SLOT_NONE ((void*) -1)
 
 
 /** Assigns an object a class type with a slot pointer.
-slot must not be NULL. Pass OBJECT_NO_SLOT for classes without per-instance state.
+slot must not be NULL. Pass SLOT_NONE for classes without per-instance state.
 Does nothing if self, cls, or slot is NULL, or if the class is already present.
 Not thread-safe with any Object function on the same object.
 */

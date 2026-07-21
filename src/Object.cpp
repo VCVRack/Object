@@ -87,7 +87,7 @@ void Object_unref(const Object* self) {
 	// Remove all classes from top to bottom
 	const Class* clsBottom = NULL;
 	for (const SchemaNode* n = self->schemaNode; n; n = n->parent) {
-		if (n->delta.type == SchemaDelta::CLASS_PUSH)
+		if (n->delta.type == SchemaDelta::CLASS)
 			clsBottom = n->delta.cls;
 	}
 	if (clsBottom)
@@ -195,7 +195,7 @@ void Object_classes_remove(Object* self, const Class* cls) {
 	// Fail silently if the object does not have the class
 	bool found = false;
 	for (const SchemaNode* n = self->schemaNode; n; n = n->parent) {
-		if (n->delta.type == SchemaDelta::CLASS_PUSH && n->delta.cls == cls) {
+		if (n->delta.type == SchemaDelta::CLASS && n->delta.cls == cls) {
 			found = true;
 			break;
 		}
@@ -205,7 +205,7 @@ void Object_classes_remove(Object* self, const Class* cls) {
 
 	// Remove classes from top down to cls (inclusive)
 	for (const SchemaNode* n = self->schemaNode; n; n = n->parent) {
-		if (n->delta.type != SchemaDelta::CLASS_PUSH)
+		if (n->delta.type != SchemaDelta::CLASS)
 			continue;
 		const Class* c = n->delta.cls;
 		if (c->free)
@@ -289,7 +289,7 @@ char* Object_inspect(const Object* self) {
 	// Collect classes in push order
 	std::vector<const Class*> classes;
 	for (const SchemaNode* n = self->schemaNode; n; n = n->parent) {
-		if (n->delta.type == SchemaDelta::CLASS_PUSH)
+		if (n->delta.type == SchemaDelta::CLASS)
 			classes.push_back(n->delta.cls);
 	}
 

@@ -25,7 +25,7 @@ struct Animal : ObjectProxy {
 
 	virtual void speak() const {
 		if (original)
-			DIRECT_CALL(self, Animal, speak);
+			CALL_DIRECT(self, Animal, speak);
 		else
 			CALL(self, Animal, speak);
 	}
@@ -34,7 +34,7 @@ struct Animal : ObjectProxy {
 		CALL(self, Animal, pet);
 	}
 
-	ACCESSOR_PROXY(Animal, Animal, legs, int);
+	PROXY_ACCESSOR(Animal, Animal, legs, int);
 };
 
 
@@ -49,12 +49,12 @@ struct Dog : Animal {
 
 	void speak() const override {
 		if (original)
-			DIRECT_CALL(self, Dog, speak);
+			CALL_DIRECT(self, Dog, speak);
 		else
 			CALL(self, Animal, speak);
 	}
 
-	ACCESSOR_PROXY(Dog, Dog, name, const char*);
+	PROXY_ACCESSOR(Dog, Dog, name, const char*);
 };
 
 

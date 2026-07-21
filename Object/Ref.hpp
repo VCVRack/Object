@@ -333,46 +333,46 @@ inline ConstRef obtain(const Object* object) {
 }
 
 
-/** Similar to DEFINE_GETTER_AUTOMATIC() from Object.h for Object* properties stored as Ref or WeakRef.
+/** Similar to DEFINE_GETTER_SLOT() from Object.h for Object* properties stored as Ref or WeakRef.
 Returns a new Object* reference for the caller.
 */
-#define DEFINE_REF_GETTER_AUTOMATIC(CLASS, PROP, TYPE) \
+#define DEFINE_REF_GETTER_SLOT(CLASS, PROP, TYPE) \
 	DEFINE_GETTER(CLASS, PROP, TYPE, NULL, { \
 		if (!slot) \
 			return NULL; \
 		return slot->PROP.share(); \
 	})
 
-/** Similar to DEFINE_SETTER_AUTOMATIC() from Object.h for Object* properties stored as Ref or WeakRef.
+/** Similar to DEFINE_SETTER_SLOT() from Object.h for Object* properties stored as Ref or WeakRef.
 Obtains a reference from the given borrowed Object*.
 */
-#define DEFINE_REF_SETTER_AUTOMATIC(CLASS, PROP, TYPE) \
+#define DEFINE_REF_SETTER_SLOT(CLASS, PROP, TYPE) \
 	DEFINE_SETTER(CLASS, PROP, TYPE, { \
 		if (!slot) \
 			return; \
 		slot->PROP.obtain(PROP); \
 	})
 
-#define DEFINE_REF_ACCESSOR_AUTOMATIC(CLASS, PROP, TYPE) \
-	DEFINE_REF_GETTER_AUTOMATIC(CLASS, PROP, TYPE) \
-	DEFINE_REF_SETTER_AUTOMATIC(CLASS, PROP, TYPE)
+#define DEFINE_REF_ACCESSOR_SLOT(CLASS, PROP, TYPE) \
+	DEFINE_REF_GETTER_SLOT(CLASS, PROP, TYPE) \
+	DEFINE_REF_SETTER_SLOT(CLASS, PROP, TYPE)
 
-/** Similar to DEFINE_GLOBAL_GETTER_AUTOMATIC() from Object.h for Object* globals stored as Ref or WeakRef.
+/** Similar to DEFINE_GLOBAL_GETTER_VARIABLE() from Object.h for Object* globals stored as Ref or WeakRef.
 Returns a new Object* reference for the caller.
 */
-#define DEFINE_GLOBAL_REF_GETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+#define DEFINE_GLOBAL_REF_GETTER_VARIABLE(PREFIX, NAME, TYPE) \
 	DEFINE_GLOBAL_GETTER(PREFIX, NAME, TYPE, { \
 		return NAME.share(); \
 	})
 
-/** Similar to DEFINE_GLOBAL_SETTER_AUTOMATIC() from Object.h for Object* globals stored as Ref or WeakRef.
+/** Similar to DEFINE_GLOBAL_SETTER_VARIABLE() from Object.h for Object* globals stored as Ref or WeakRef.
 Obtains a reference from the given borrowed Object*.
 */
-#define DEFINE_GLOBAL_REF_SETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
+#define DEFINE_GLOBAL_REF_SETTER_VARIABLE(PREFIX, NAME, TYPE) \
 	EXTERNC void PREFIX##_##NAME##_set(TYPE NAME##_) { \
 		NAME.obtain(NAME##_); \
 	}
 
-#define DEFINE_GLOBAL_REF_ACCESSOR_AUTOMATIC(PREFIX, NAME, TYPE) \
-	DEFINE_GLOBAL_REF_GETTER_AUTOMATIC(PREFIX, NAME, TYPE) \
-	DEFINE_GLOBAL_REF_SETTER_AUTOMATIC(PREFIX, NAME, TYPE)
+#define DEFINE_GLOBAL_REF_ACCESSOR_VARIABLE(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_REF_GETTER_VARIABLE(PREFIX, NAME, TYPE) \
+	DEFINE_GLOBAL_REF_SETTER_VARIABLE(PREFIX, NAME, TYPE)
