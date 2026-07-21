@@ -352,8 +352,7 @@ https://radek.io/posts/magical-container_of-macro/
 		PROXY_METHODS(CPPCLASS, PROP) \
 		METHODS \
 	}; \
-	[[no_unique_address]] \
-	Proxy_##PROP PROP
+	[[no_unique_address]] Proxy_##PROP PROP
 
 
 template <typename Base>
@@ -401,8 +400,7 @@ struct GetterProxy : Proxy<Base> {
 
 #define PROXY_GETTER_METHODS(TYPE, GETTER) \
 	TYPE get() const { \
-		Object* self = self_get(); \
-		(void) self; \
+		[[maybe_unused]] Object* self = self_get(); \
 		GETTER \
 	}
 
@@ -412,8 +410,7 @@ struct GetterProxy : Proxy<Base> {
 		PROXY_METHODS(CPPCLASS, PROP) \
 		PROXY_GETTER_METHODS(TYPE, GETTER) \
 	}; \
-	[[no_unique_address]] \
-	const GetterProxy<Proxy_##PROP> PROP
+	[[no_unique_address]] const GetterProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a const variable but wraps a getter function.
@@ -479,8 +476,7 @@ struct AccessorProxy : GetterProxy<Base> {
 #define PROXY_ACCESSOR_METHODS(PROP, TYPE, GETTER, SETTER) \
 	PROXY_GETTER_METHODS(TYPE, GETTER) \
 	void set(TYPE PROP) { \
-		Object* self = self_get(); \
-		(void) self; \
+		[[maybe_unused]] Object* self = self_get(); \
 		SETTER \
 	}
 
@@ -490,8 +486,7 @@ struct AccessorProxy : GetterProxy<Base> {
 		PROXY_METHODS(CPPCLASS, PROP) \
 		PROXY_ACCESSOR_METHODS(PROP, TYPE, GETTER, SETTER) \
 	}; \
-	[[no_unique_address]] \
-	AccessorProxy<Proxy_##PROP> PROP
+	[[no_unique_address]] AccessorProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a mutable variable but wraps getter/setter functions.
@@ -601,13 +596,11 @@ struct ArrayGetterProxy : Proxy<Base> {
 
 #define PROXY_ARRAY_GETTER_METHODS(TYPE, COUNT, GETTER) \
 	size_t count_get() const { \
-		Object* self = self_get(); \
-		(void) self; \
+		[[maybe_unused]] Object* self = self_get(); \
 		COUNT \
 	} \
 	TYPE get(size_t index) const { \
-		Object* self = self_get(); \
-		(void) self; \
+		[[maybe_unused]] Object* self = self_get(); \
 		GETTER \
 	}
 
@@ -617,8 +610,7 @@ struct ArrayGetterProxy : Proxy<Base> {
 		PROXY_METHODS(CPPCLASS, PROPS) \
 		PROXY_ARRAY_GETTER_METHODS(TYPE, COUNT, GETTER) \
 	}; \
-	[[no_unique_address]] \
-	const ArrayGetterProxy<Proxy_##PROPS> PROPS
+	[[no_unique_address]] const ArrayGetterProxy<Proxy_##PROPS> PROPS
 
 
 /** Behaves like a const array but wraps an element getter function.
@@ -782,8 +774,7 @@ struct ArrayAccessorProxy : Proxy<Base> {
 #define PROXY_ARRAY_ACCESSOR_METHODS(TYPE, COUNT, GETTER, SETTER) \
 	PROXY_ARRAY_GETTER_METHODS(TYPE, COUNT, GETTER) \
 	void set(size_t index, TYPE element) { \
-		Object* self = self_get(); \
-		(void) self; \
+		[[maybe_unused]] Object* self = self_get(); \
 		SETTER \
 	}
 
@@ -793,8 +784,7 @@ struct ArrayAccessorProxy : Proxy<Base> {
 		PROXY_METHODS(CPPCLASS, PROPS) \
 		PROXY_ARRAY_ACCESSOR_METHODS(TYPE, COUNT, GETTER, SETTER) \
 	}; \
-	[[no_unique_address]] \
-	ArrayAccessorProxy<Proxy_##PROPS> PROPS
+	[[no_unique_address]] ArrayAccessorProxy<Proxy_##PROPS> PROPS
 
 
 /** Behaves like a mutable array but wraps an element getter/setter function pair.
@@ -820,8 +810,7 @@ Usage:
 #define PROXY_VECTOR_ACCESSOR_METHODS(TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
 	PROXY_ARRAY_ACCESSOR_METHODS(TYPE, COUNTGETTER, GETTER, SETTER) \
 	void count_set(size_t count) { \
-		Object* self = self_get(); \
-		(void) self; \
+		[[maybe_unused]] Object* self = self_get(); \
 		COUNTSETTER \
 	}
 
@@ -831,8 +820,7 @@ Usage:
 		PROXY_METHODS(CPPCLASS, PROPS) \
 		PROXY_VECTOR_ACCESSOR_METHODS(TYPE, COUNTGETTER, COUNTSETTER, GETTER, SETTER) \
 	}; \
-	[[no_unique_address]] \
-	ArrayAccessorProxy<Proxy_##PROPS> PROPS
+	[[no_unique_address]] ArrayAccessorProxy<Proxy_##PROPS> PROPS
 
 
 #define PROXY_VECTOR_ACCESSOR(CPPCLASS, PROPS, CLASS, PROP, TYPE) \
@@ -877,8 +865,7 @@ struct StringGetterProxy : GetterProxy<Base> {
 		PROXY_METHODS(CPPCLASS, PROP) \
 		PROXY_GETTER_METHODS(std::string, GETTER) \
 	}; \
-	[[no_unique_address]] \
-	const StringGetterProxy<Proxy_##PROP> PROP
+	[[no_unique_address]] const StringGetterProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a `const std::string` member but proxies a `char*` getter function where the caller must free(). */
@@ -933,8 +920,7 @@ struct StringAccessorProxy : AccessorProxy<Base> {
 		PROXY_METHODS(CPPCLASS, PROP) \
 		PROXY_ACCESSOR_METHODS(PROP, std::string, GETTER, SETTER) \
 	}; \
-	[[no_unique_address]] \
-	StringAccessorProxy<Proxy_##PROP> PROP
+	[[no_unique_address]] StringAccessorProxy<Proxy_##PROP> PROP
 
 
 /** Behaves like a `std::string` member but proxies a `char*` getter function where the caller must free(), and a `const char*` setter function where the setter copies the string. */
