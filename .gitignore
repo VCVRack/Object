@@ -1,2 +1,6 @@
+.*
 *.o
 examples/test
+scratch
+AGENTS.md
+CLAUDE.md
